@@ -1,0 +1,83 @@
+
+<programa> : <lista_sentencias>
+<lista_sentencias> : <sentencia> | <sentencia> <lista_sentencias>
+
+<sentencia> : <condicional>
+<sentencia> : <asignacion>
+<sentencia> : <declaracion_variables>
+<sentencia> : <iteracion>
+<sentencia> : <io>
+
+<!-- Funciones especiales de este cuatrimestre -->
+<sentencia> : <all_equal> <!-- TODO -->
+<sentencia> : <iguales> <!-- TODO -->
+<sentencia> : <bases> <!-- TODO -->
+<sentencia> : <filter> <!-- TODO -->
+<sentencia> : <punteros> <!-- TODO -->
+<!-- fin de funciones especiales -->
+
+<io> : <entrada> | <salida>
+
+<entrada> : READ id
+<salida> : WRITE id | WRITE cte
+
+<condicional> : IF <condicion> THEN <lista_sentencias> ENDIF | IF <condicion> THEN <lista_sentencias> ELSE <lista_sentencias> ENDIF
+
+<condicion> : <comparacion>
+<condicion> : <comparacion> and <comparacion>
+<condicion> : <comparacion> or <comparacion>
+<comparacion> : <expresion> <comparador> <expresion> | NOT <expresion>
+
+<iteracion> : while <condicion> begin <lista_sentencias> end
+
+<expresion_str> : <factor_str> | <factor_str> ++ <factor_str>
+<factor_str> : cte | id
+<asignacion> : id := <expresion_str>
+
+<asignacion> : id := <expresion>
+<expresion> : <termino> | <expresion> + <termino> | <expresion> - <termino>
+<termino> : <factor> | <termino> / <factor> | <termino> * <factor>
+<factor> : cte | id 
+
+<declaracion_variables> : DIM [ <lista_variables_tipos> ]
+<declaracion_variables> : DIM [ <lista_variables_tipos> ] <declaracion_variables>
+<lista_variables_tipos> : id , <lista_variables_tipos> , <tipo_dato> | id ] AS [ <tipo_dato>
+
+<tipo_dato> : int | float | string 
+<comparador> : > | < | <= | >= | == | !=
+
+KEYWORD				["if"]
+ID					{LETRA}({LETRA}|{DIGITO}|_|-)*
+LETRA				[a-zA-Z]
+CAR_ESPECIAL		[�,?,�,!]
+OPMULTI				["*"]
+OPDIV				["/"]
+OPMAS				["+"]
+OPMENOS				["-"]
+OPCONCAT			["++"]
+MAYOR				[">"]
+MENOR				["<"]
+MAYOR_IGUAL			[">="]
+MENOR_IGUAL			["<="]
+ASIGNA				[":="]
+IGUAL				["=="]
+DISTINTO			["!="]
+NEGADO				["NOT"]
+OP_AND				["AND"]
+OP_OR				["OR"]
+P_ABRE				["("]
+P_CIERRA			[")"]
+COR_ABRE			["["]
+COR_CIERRA			["]"]
+COMA				[","]
+PUNTO_COMA			[";"]
+PUNTO				["."]
+ESPACIO 			[" "]
+ENTER 				["\n"]
+TAB 				["\t"]
+CONST_FLOAT    		{DIGITO}+"."{DIGITO}*|"."{DIGITO}+
+CONST_INT       	{DIGITO}+
+DIGITO				[0-9]
+COMILLA				["\""]
+CADENA              .
+COMENTARIO          .
