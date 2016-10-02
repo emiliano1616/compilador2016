@@ -1,12 +1,6 @@
 MAIN
-DIM [a,b,c,d] AS [INT,INT,INT,STRING];
-c:=3;
-IF(c==3)
-THEN
-c:=2+3;
-ENDIF
-
-IF(c==4)
-THEN
-c:=2;
-ENDIF
+DECVAR
+a,b:INT;
+ENDDEC;
+AVG([a,b,2,3,4,5]);
+BETWEEN(a,[1;3]);

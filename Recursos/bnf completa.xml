@@ -9,11 +9,8 @@
 <sentencia> : <io>
 
 <!-- Funciones especiales de este cuatrimestre -->
-<sentencia> : <all_equal> <!-- TODO -->
-<sentencia> : <iguales> <!-- TODO -->
-<sentencia> : <bases> <!-- TODO -->
-<sentencia> : <filter> <!-- TODO -->
-<sentencia> : <punteros> <!-- TODO -->
+<sentencia> : <average> <!-- TODO -->
+<sentencia> : <between> <!-- TODO -->
 <!-- fin de funciones especiales -->
 
 <io> : <entrada> | <salida>
@@ -39,45 +36,13 @@
 <termino> : <factor> | <termino> / <factor> | <termino> * <factor>
 <factor> : cte | id 
 
-<declaracion_variables> : DIM [ <lista_variables_tipos> ]
+<declaracion_variables> : DECVAR <linea_de_declaracion_de_tipos> ENDDEC
+<linea_de_declaracion_de_tipos> : <lista_variables> : <tipo_dato> | <lista_variables> : <tipo_dato> <linea_de_declaracion_de_tipos> 
+<lista_variables> : id | id , <lista_variables>
+
+<!-- <declaracion_variables> : DIM [ <lista_variables_tipos> ]
 <declaracion_variables> : DIM [ <lista_variables_tipos> ] <declaracion_variables>
-<lista_variables_tipos> : id , <lista_variables_tipos> , <tipo_dato> | id ] AS [ <tipo_dato>
+<lista_variables_tipos> : id , <lista_variables_tipos> , <tipo_dato> | id ] AS [ <tipo_dato> -->
 
 <tipo_dato> : int | float | string 
 <comparador> : > | < | <= | >= | == | !=
-
-KEYWORD				["if"]
-ID					{LETRA}({LETRA}|{DIGITO}|_|-)*
-LETRA				[a-zA-Z]
-CAR_ESPECIAL		[�,?,�,!]
-OPMULTI				["*"]
-OPDIV				["/"]
-OPMAS				["+"]
-OPMENOS				["-"]
-OPCONCAT			["++"]
-MAYOR				[">"]
-MENOR				["<"]
-MAYOR_IGUAL			[">="]
-MENOR_IGUAL			["<="]
-ASIGNA				[":="]
-IGUAL				["=="]
-DISTINTO			["!="]
-NEGADO				["NOT"]
-OP_AND				["AND"]
-OP_OR				["OR"]
-P_ABRE				["("]
-P_CIERRA			[")"]
-COR_ABRE			["["]
-COR_CIERRA			["]"]
-COMA				[","]
-PUNTO_COMA			[";"]
-PUNTO				["."]
-ESPACIO 			[" "]
-ENTER 				["\n"]
-TAB 				["\t"]
-CONST_FLOAT    		{DIGITO}+"."{DIGITO}*|"."{DIGITO}+
-CONST_INT       	{DIGITO}+
-DIGITO				[0-9]
-COMILLA				["\""]
-CADENA              .
-COMENTARIO          .

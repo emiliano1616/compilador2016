@@ -32,7 +32,6 @@ OP_MAYOR				[">"]
 OP_MENOR				["<"]
 OP_MAYOR_IGUAL			[">="]
 OP_MENOR_IGUAL			["<="]
-OP_FILTER			["_"]
 ASIGNA				[":="]
 IGUAL				["=="]
 DISTINTO			["!="]
@@ -73,8 +72,10 @@ COMENTARIO          .
 "WHILE"	      	{ return PR_WHILE;}
 "DO"	        { return PR_DO;}
 "ENDWHILE"  	{ return PR_ENDWHILE;}
-"IGUALES"		{ return PR_IGUALES;}
-"FILTER"		{ return PR_FILTER;}
+"BETWEEN"		{ return PR_BETWEEN;}
+"AVG"			{ return PR_AVERAGE;}
+"DECVAR"		{ return PR_DECVAR;}
+"ENDDEC"		{ return PR_ENDDEC;}
 "+"				{ return OP_SUMA;}
 "-"				{ return OP_RESTA;}
 "*"				{ return OP_MUL;}
@@ -96,8 +97,8 @@ COMENTARIO          .
 "READ"			{ return PR_READ;}
 "WRITE"			{ return PR_WRITE;}
 ","				{ return COMA;}
-"_"				{ return OP_FILTER;} 
 ";"				{ return PUNTO_Y_COMA;}
+":"				{ return DOS_PUNTOS;}
 "++"			{ return OP_CONCAT;}
 "-/"{COMENTARIO}*"/-" // printf ("comentario \n");
 "//"({COMENTARIO})* //printf("comentario \n");

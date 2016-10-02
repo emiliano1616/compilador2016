@@ -10,7 +10,6 @@ typedef struct
  float valor_float;
  int esConstante;
  int longitud;
- char *alias;
  int lineNumber;
 } t_simbolo;
 

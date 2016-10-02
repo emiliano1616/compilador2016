@@ -79,45 +79,53 @@
 #include "arbol.h"
 #include "pila.h"
 #include "cola.h"
+#include "ts.h"
+#include "funciones.h"
 
 #define DEBUG 1
 extern YYSTYPE yylval;
-char prefijo_id[10] = PREFIJO_ID;
-char prefijo_int[10] = PREFIJO_INT;
-char prefijo_float[10] = PREFIJO_FLOAT;
-char prefijo_string[10] = PREFIJO_STRING;
 char temp_variables[MAX_VARIABLES][30];
-char temp_tipo_dato[MAX_VARIABLES][10];
+// char temp_tipo_dato[MAX_VARIABLES][10];
+char temp_tipo_dato[10];
 int variables_a_agregar= 0;
-char aux[30];
-char aux2[30];
-int cantidad_cte_string = 0;
-int buscar_en_TS_sin_prefijo(char * nombre, char * mjs_error , int lineNumber );
-int buscar_en_TS(char * nombre, char * mjs_error, int lineNumber);
-void agregar_simbolo(char * nombre, int tipo, char * valor,char * alias,int lineNumber,int esConstante);
-void agregar_variable_a_TS(char * nombre, char * tipo,int lineNumber);
-void agregar_cte_a_TS(int tipo, char * valor_str, int valor_int,float valor_float,int lineNumber);
-void agregar_cte_a_TS_sin_prefijo(int tipo, char * valor_str, int valor_int,float valor_float,int lineNumber);
-void error_lexico(char * mensaje);
-int tipos_iguales(char * nombre1, char * nombre2, char * mjs_error, int lineNumber);
-int traer_tipo(char * nombre);
-void poner_prefijo(char * str, char * prefijo);
-void copiar_sin_finalizador(char * dest,char * orig); 
-void reemplazar(char * cad, char old,char new, int size) ;
-char *newStr (char *charBuffer);
-char * substring(char * str , int start, int end);
-char * get_nombre_sin_prefijo(t_simbolo *);
-int traer_tipo_con_prefijo(char * nombre);
+
 
 extern int linecount;
-static t_info_sentencias * p_info_iguales;
-static FILE *a;
-static char asig_final[80];
-static char asig_iguales[80];
-static char sent_final[80];
-static char string_saltos[1];
-static char string_cond[5];
 
+t_pila_de_colas * pila_de_colas;
+t_pila * pila_bloques;
+t_cola * cola_sentencias;
+t_pila * pila_comparaciones;
+t_pila * pila_condiciones;
+t_pila * pila_expresiones;
+t_pila * pila_factores;
+t_pila * pila_terminos;
+t_pila_asm * pila_whiles;
+
+t_arbol * arbol_ejecucion;
+t_nodo_arbol * nodo_between;
+t_nodo_arbol * nodo_average;
+t_nodo_arbol * nodo_factor;
+t_nodo_arbol * nodo_termino;
+t_nodo_arbol * nodo_expresion;
+t_nodo_arbol * nodo_asignacion;
+t_nodo_arbol * nodo_condicion;
+t_nodo_arbol * nodo_comparacion;
+t_nodo_arbol * nodo_pgm;
+t_nodo_arbol * nodo_programa;
+t_nodo_arbol * nodo_sentencia;
+t_nodo_arbol * nodo_sentencias;
+t_nodo_arbol * nodo_comparador;
+t_nodo_arbol * nodo_condicional;
+t_nodo_arbol * nodo_iteracion;
+t_nodo_arbol * nodo_io;
+t_nodo_arbol * nodo_entrada;
+t_nodo_arbol * nodo_salida;
+t_nodo_arbol * nodo_declaracion_variable;
+t_nodo_arbol * nodo_sentencias_then;
+t_nodo_arbol * nodo_sentencias_else;
+t_nodo_arbol * nodo_then;
+t_nodo_arbol * nodo_asm_while;
 
 
 int yylex();
@@ -126,7 +134,7 @@ FILE  *yyin; //Archivo de Entrada
 
 
 /* Line 189 of yacc.c  */
-#line 130 "y.tab.c"
+#line 138 "y.tab.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -158,44 +166,46 @@ FILE  *yyin; //Archivo de Entrada
      CONST_STR = 260,
      CONST_FLOAT = 261,
      PR_MAIN = 262,
-     PR_IGUALES = 263,
-     PR_FILTER = 264,
-     PR_WRITE = 265,
-     PR_READ = 266,
-     PR_IF = 267,
-     PR_THEN = 268,
-     PR_ENDIF = 269,
-     PR_ELSE = 270,
-     PR_NOT = 271,
-     PR_WHILE = 272,
-     PR_DO = 273,
-     PR_ENDWHILE = 274,
-     PAR_ABRE = 275,
-     PAR_CIERRA = 276,
-     COR_ABRE = 277,
-     COR_CIERRA = 278,
-     COMA = 279,
-     OP_LOG_AND = 280,
-     OP_LOG_OR = 281,
-     OP_SUMA = 282,
-     OP_RESTA = 283,
-     OP_MUL = 284,
-     OP_DIV = 285,
-     OP_MAYOR = 286,
-     OP_MAYOR_IGUAL = 287,
-     OP_MENOR = 288,
-     OP_MENOR_IGUAL = 289,
-     OP_DISTINTO = 290,
-     OP_IGUAL_IGUAL = 291,
-     OP_IGUAL = 292,
-     PR_AS = 293,
-     PR_DIM = 294,
-     OP_FILTER = 295,
-     PR_FLOAT = 296,
-     PR_INT = 297,
-     PR_STRING = 298,
-     OP_CONCAT = 299,
-     PUNTO_Y_COMA = 300
+     PR_WRITE = 263,
+     PR_READ = 264,
+     PR_IF = 265,
+     PR_THEN = 266,
+     PR_ENDIF = 267,
+     PR_ELSE = 268,
+     PR_NOT = 269,
+     PR_WHILE = 270,
+     PR_DO = 271,
+     PR_ENDWHILE = 272,
+     PR_AVERAGE = 273,
+     PR_DECVAR = 274,
+     PR_ENDDEC = 275,
+     PR_BETWEEN = 276,
+     PAR_ABRE = 277,
+     PAR_CIERRA = 278,
+     COR_ABRE = 279,
+     COR_CIERRA = 280,
+     COMA = 281,
+     OP_LOG_AND = 282,
+     OP_LOG_OR = 283,
+     OP_SUMA = 284,
+     OP_RESTA = 285,
+     OP_MUL = 286,
+     OP_DIV = 287,
+     OP_MAYOR = 288,
+     OP_MAYOR_IGUAL = 289,
+     OP_MENOR = 290,
+     OP_MENOR_IGUAL = 291,
+     OP_DISTINTO = 292,
+     OP_IGUAL_IGUAL = 293,
+     OP_IGUAL = 294,
+     PR_AS = 295,
+     PR_DIM = 296,
+     PR_FLOAT = 297,
+     PR_INT = 298,
+     PR_STRING = 299,
+     OP_CONCAT = 300,
+     PUNTO_Y_COMA = 301,
+     DOS_PUNTOS = 302
    };
 #endif
 /* Tokens.  */
@@ -204,44 +214,46 @@ FILE  *yyin; //Archivo de Entrada
 #define CONST_STR 260
 #define CONST_FLOAT 261
 #define PR_MAIN 262
-#define PR_IGUALES 263
-#define PR_FILTER 264
-#define PR_WRITE 265
-#define PR_READ 266
-#define PR_IF 267
-#define PR_THEN 268
-#define PR_ENDIF 269
-#define PR_ELSE 270
-#define PR_NOT 271
-#define PR_WHILE 272
-#define PR_DO 273
-#define PR_ENDWHILE 274
-#define PAR_ABRE 275
-#define PAR_CIERRA 276
-#define COR_ABRE 277
-#define COR_CIERRA 278
-#define COMA 279
-#define OP_LOG_AND 280
-#define OP_LOG_OR 281
-#define OP_SUMA 282
-#define OP_RESTA 283
-#define OP_MUL 284
-#define OP_DIV 285
-#define OP_MAYOR 286
-#define OP_MAYOR_IGUAL 287
-#define OP_MENOR 288
-#define OP_MENOR_IGUAL 289
-#define OP_DISTINTO 290
-#define OP_IGUAL_IGUAL 291
-#define OP_IGUAL 292
-#define PR_AS 293
-#define PR_DIM 294
-#define OP_FILTER 295
-#define PR_FLOAT 296
-#define PR_INT 297
-#define PR_STRING 298
-#define OP_CONCAT 299
-#define PUNTO_Y_COMA 300
+#define PR_WRITE 263
+#define PR_READ 264
+#define PR_IF 265
+#define PR_THEN 266
+#define PR_ENDIF 267
+#define PR_ELSE 268
+#define PR_NOT 269
+#define PR_WHILE 270
+#define PR_DO 271
+#define PR_ENDWHILE 272
+#define PR_AVERAGE 273
+#define PR_DECVAR 274
+#define PR_ENDDEC 275
+#define PR_BETWEEN 276
+#define PAR_ABRE 277
+#define PAR_CIERRA 278
+#define COR_ABRE 279
+#define COR_CIERRA 280
+#define COMA 281
+#define OP_LOG_AND 282
+#define OP_LOG_OR 283
+#define OP_SUMA 284
+#define OP_RESTA 285
+#define OP_MUL 286
+#define OP_DIV 287
+#define OP_MAYOR 288
+#define OP_MAYOR_IGUAL 289
+#define OP_MENOR 290
+#define OP_MENOR_IGUAL 291
+#define OP_DISTINTO 292
+#define OP_IGUAL_IGUAL 293
+#define OP_IGUAL 294
+#define PR_AS 295
+#define PR_DIM 296
+#define PR_FLOAT 297
+#define PR_INT 298
+#define PR_STRING 299
+#define OP_CONCAT 300
+#define PUNTO_Y_COMA 301
+#define DOS_PUNTOS 302
 
 
 
@@ -251,7 +263,7 @@ typedef union YYSTYPE
 {
 
 /* Line 214 of yacc.c  */
-#line 58 "syntax.y"
+#line 66 "syntax.y"
 
 int intval;
 float val;
@@ -260,7 +272,7 @@ char *str_val;
 
 
 /* Line 214 of yacc.c  */
-#line 264 "y.tab.c"
+#line 276 "y.tab.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -272,7 +284,7 @@ char *str_val;
 
 
 /* Line 264 of yacc.c  */
-#line 276 "y.tab.c"
+#line 288 "y.tab.c"
 
 #ifdef short
 # undef short
@@ -487,20 +499,20 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  23
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   144
+#define YYLAST   119
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  46
+#define YYNTOKENS  48
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  28
+#define YYNNTS  26
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  64
+#define YYNRULES  58
 /* YYNRULES -- Number of states.  */
-#define YYNSTATES  132
+#define YYNSTATES  117
 
 /* YYTRANSLATE(YYLEX) -- Bison symbol number corresponding to YYLEX.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   300
+#define YYMAXUTOK   302
 
 #define YYTRANSLATE(YYX)						\
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -538,7 +550,7 @@ static const yytype_uint8 yytranslate[] =
       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
       25,    26,    27,    28,    29,    30,    31,    32,    33,    34,
       35,    36,    37,    38,    39,    40,    41,    42,    43,    44,
-      45
+      45,    46,    47
 };
 
 #if YYDEBUG
@@ -546,52 +558,48 @@ static const yytype_uint8 yytranslate[] =
    YYRHS.  */
 static const yytype_uint8 yyprhs[] =
 {
-       0,     0,     3,     5,     9,    12,    15,    17,    20,    22,
-      24,    27,    30,    33,    42,    46,    48,    57,    59,    63,
-      67,    71,    75,    77,    79,    81,    84,    87,    90,    97,
-     105,   108,   111,   113,   117,   121,   125,   128,   136,   140,
-     144,   146,   150,   154,   156,   160,   164,   166,   168,   170,
-     172,   174,   176,   182,   189,   195,   201,   203,   205,   207,
-     209,   211,   213,   215,   217
+       0,     0,     3,     5,     9,    12,    15,    18,    21,    23,
+      26,    28,    30,    33,    44,    51,    53,    57,    59,    61,
+      64,    67,    70,    77,    85,    88,    91,    93,    97,   101,
+     105,   108,   116,   120,   124,   126,   130,   134,   136,   140,
+     144,   146,   148,   150,   152,   154,   159,   164,   170,   172,
+     176,   178,   180,   182,   184,   186,   188,   190,   192
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
 static const yytype_int8 yyrhs[] =
 {
-      47,     0,    -1,    48,    -1,     7,    70,    50,    -1,     7,
-      50,    -1,    66,    45,    -1,    49,    -1,    49,    50,    -1,
-      60,    -1,    65,    -1,    57,    45,    -1,    51,    45,    -1,
-      53,    45,    -1,     8,    20,    67,    24,    22,    52,    23,
-      21,    -1,    67,    24,    52,    -1,    67,    -1,     9,    20,
-      54,    24,    22,    56,    23,    21,    -1,    55,    -1,    55,
-      25,    55,    -1,    55,    26,    55,    -1,    40,    73,    67,
-      -1,     3,    24,    56,    -1,     3,    -1,    58,    -1,    59,
-      -1,    11,     3,    -1,    10,     3,    -1,    10,     5,    -1,
-      12,    20,    63,    21,    61,    14,    -1,    12,    20,    63,
-      21,    61,    62,    14,    -1,    13,    50,    -1,    15,    50,
-      -1,    64,    -1,    64,    25,    64,    -1,    64,    26,    64,
-      -1,    67,    73,    67,    -1,    16,    67,    -1,    17,    20,
-      63,    21,    18,    50,    19,    -1,     3,    37,    67,    -1,
-      69,    44,    69,    -1,    68,    -1,    67,    27,    68,    -1,
-      67,    28,    68,    -1,    69,    -1,    68,    30,    69,    -1,
-      68,    29,    69,    -1,     5,    -1,     4,    -1,     6,    -1,
-       3,    -1,    51,    -1,    53,    -1,    39,    22,    71,    23,
-      45,    -1,    39,    22,    71,    23,    45,    70,    -1,     3,
-      24,    71,    24,    72,    -1,     3,    23,    38,    22,    72,
-      -1,    42,    -1,    41,    -1,    43,    -1,    31,    -1,    33,
-      -1,    34,    -1,    32,    -1,    36,    -1,    35,    -1
+      49,     0,    -1,    50,    -1,     7,    69,    52,    -1,     7,
+      52,    -1,    65,    46,    -1,    53,    46,    -1,    54,    46,
+      -1,    51,    -1,    51,    52,    -1,    59,    -1,    64,    -1,
+      56,    46,    -1,    21,    22,     3,    26,    24,    66,    46,
+      66,    25,    23,    -1,    18,    22,    24,    55,    25,    23,
+      -1,    66,    -1,    66,    26,    55,    -1,    57,    -1,    58,
+      -1,     9,     3,    -1,     8,     3,    -1,     8,     5,    -1,
+      10,    22,    62,    23,    60,    12,    -1,    10,    22,    62,
+      23,    60,    61,    12,    -1,    11,    52,    -1,    13,    52,
+      -1,    63,    -1,    63,    27,    63,    -1,    63,    28,    63,
+      -1,    66,    73,    66,    -1,    14,    66,    -1,    15,    22,
+      62,    23,    16,    52,    17,    -1,     3,    39,    66,    -1,
+      68,    45,    68,    -1,    67,    -1,    66,    29,    67,    -1,
+      66,    30,    67,    -1,    68,    -1,    67,    32,    68,    -1,
+      67,    31,    68,    -1,    53,    -1,     5,    -1,     4,    -1,
+       6,    -1,     3,    -1,    19,    70,    20,    46,    -1,    71,
+      47,    72,    46,    -1,    71,    47,    72,    46,    70,    -1,
+       3,    -1,     3,    26,    71,    -1,    43,    -1,    42,    -1,
+      44,    -1,    33,    -1,    35,    -1,    36,    -1,    34,    -1,
+      38,    -1,    37,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   123,   123,   129,   141,   149,   158,   166,   174,   185,
-     193,   201,   209,   217,   226,   234,   242,   251,   257,   263,
-     269,   281,   289,   297,   305,   313,   327,   343,   352,   360,
-     370,   379,   387,   395,   403,   411,   426,   434,   443,   460,
-     500,   511,   533,   556,   565,   588,   612,   627,   642,   657,
-     666,   675,   690,   708,   715,   727,   749,   758,   767,   776,
-     785,   794,   805,   814,   823
+       0,   131,   131,   138,   150,   158,   174,   190,   207,   220,
+     240,   261,   280,   293,   321,   336,   344,   353,   364,   373,
+     388,   405,   415,   428,   443,   453,   462,   478,   497,   515,
+     539,   553,   568,   590,   641,   658,   690,   723,   737,   771,
+     806,   819,   840,   862,   882,   901,   910,   919,   935,   948,
+    1021,  1037,  1052,  1067,  1076,  1085,  1096,  1105,  1114
 };
 #endif
 
@@ -601,20 +609,20 @@ static const yytype_uint16 yyrline[] =
 static const char *const yytname[] =
 {
   "$end", "error", "$undefined", "TOKEN_ID", "CONST_INT", "CONST_STR",
-  "CONST_FLOAT", "PR_MAIN", "PR_IGUALES", "PR_FILTER", "PR_WRITE",
-  "PR_READ", "PR_IF", "PR_THEN", "PR_ENDIF", "PR_ELSE", "PR_NOT",
-  "PR_WHILE", "PR_DO", "PR_ENDWHILE", "PAR_ABRE", "PAR_CIERRA", "COR_ABRE",
-  "COR_CIERRA", "COMA", "OP_LOG_AND", "OP_LOG_OR", "OP_SUMA", "OP_RESTA",
-  "OP_MUL", "OP_DIV", "OP_MAYOR", "OP_MAYOR_IGUAL", "OP_MENOR",
-  "OP_MENOR_IGUAL", "OP_DISTINTO", "OP_IGUAL_IGUAL", "OP_IGUAL", "PR_AS",
-  "PR_DIM", "OP_FILTER", "PR_FLOAT", "PR_INT", "PR_STRING", "OP_CONCAT",
-  "PUNTO_Y_COMA", "$accept", "pgm", "programa", "sentencia",
-  "lista_sentencias", "iguales", "lista_expresiones", "filter",
-  "condicion_filter", "comparacion_filter", "lista_variables", "io",
-  "entrada", "salida", "condicional", "then", "else", "condicion",
-  "comparacion", "iteracion", "asignacion", "expresion", "termino",
-  "factor", "declaracion_variables", "declaracion_variables_interna",
-  "tipo_dato", "comparador", 0
+  "CONST_FLOAT", "PR_MAIN", "PR_WRITE", "PR_READ", "PR_IF", "PR_THEN",
+  "PR_ENDIF", "PR_ELSE", "PR_NOT", "PR_WHILE", "PR_DO", "PR_ENDWHILE",
+  "PR_AVERAGE", "PR_DECVAR", "PR_ENDDEC", "PR_BETWEEN", "PAR_ABRE",
+  "PAR_CIERRA", "COR_ABRE", "COR_CIERRA", "COMA", "OP_LOG_AND",
+  "OP_LOG_OR", "OP_SUMA", "OP_RESTA", "OP_MUL", "OP_DIV", "OP_MAYOR",
+  "OP_MAYOR_IGUAL", "OP_MENOR", "OP_MENOR_IGUAL", "OP_DISTINTO",
+  "OP_IGUAL_IGUAL", "OP_IGUAL", "PR_AS", "PR_DIM", "PR_FLOAT", "PR_INT",
+  "PR_STRING", "OP_CONCAT", "PUNTO_Y_COMA", "DOS_PUNTOS", "$accept", "pgm",
+  "programa", "sentencia", "lista_sentencias", "between", "average",
+  "lista_expresiones", "io", "entrada", "salida", "condicional", "then",
+  "else", "condicion", "comparacion", "iteracion", "asignacion",
+  "expresion", "termino", "factor", "declaracion_variables",
+  "linea_de_declaracion_de_tipos", "lista_variables", "tipo_dato",
+  "comparador", 0
 };
 #endif
 
@@ -627,32 +635,30 @@ static const yytype_uint16 yytoknum[] =
      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
      275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
      285,   286,   287,   288,   289,   290,   291,   292,   293,   294,
-     295,   296,   297,   298,   299,   300
+     295,   296,   297,   298,   299,   300,   301,   302
 };
 # endif
 
 /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    46,    47,    48,    48,    49,    50,    50,    49,    49,
-      49,    49,    49,    51,    52,    52,    53,    54,    54,    54,
-      55,    56,    56,    57,    57,    58,    59,    59,    60,    60,
-      61,    62,    63,    63,    63,    64,    64,    65,    66,    67,
-      67,    67,    67,    68,    68,    68,    69,    69,    69,    69,
-      69,    69,    70,    70,    71,    71,    72,    72,    72,    73,
-      73,    73,    73,    73,    73
+       0,    48,    49,    50,    50,    51,    51,    51,    52,    52,
+      51,    51,    51,    53,    54,    55,    55,    56,    56,    57,
+      58,    58,    59,    59,    60,    61,    62,    62,    62,    63,
+      63,    64,    65,    66,    66,    66,    66,    67,    67,    67,
+      68,    68,    68,    68,    68,    69,    70,    70,    71,    71,
+      72,    72,    72,    73,    73,    73,    73,    73,    73
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
-       0,     2,     1,     3,     2,     2,     1,     2,     1,     1,
-       2,     2,     2,     8,     3,     1,     8,     1,     3,     3,
-       3,     3,     1,     1,     1,     2,     2,     2,     6,     7,
-       2,     2,     1,     3,     3,     3,     2,     7,     3,     3,
-       1,     3,     3,     1,     3,     3,     1,     1,     1,     1,
-       1,     1,     5,     6,     5,     5,     1,     1,     1,     1,
-       1,     1,     1,     1,     1
+       0,     2,     1,     3,     2,     2,     2,     2,     1,     2,
+       1,     1,     2,    10,     6,     1,     3,     1,     1,     2,
+       2,     2,     6,     7,     2,     2,     1,     3,     3,     3,
+       2,     7,     3,     3,     1,     3,     3,     1,     3,     3,
+       1,     1,     1,     1,     1,     4,     4,     5,     1,     3,
+       1,     1,     1,     1,     1,     1,     1,     1,     1
 };
 
 /* YYDEFACT[STATE-NAME] -- Default rule to reduce with in state
@@ -661,56 +667,52 @@ static const yytype_uint8 yyr2[] =
 static const yytype_uint8 yydefact[] =
 {
        0,     0,     0,     2,     0,     0,     0,     0,     0,     0,
-       0,     0,     6,     4,     0,     0,     0,    23,    24,     8,
-       9,     0,     0,     1,     0,     0,     0,    26,    27,    25,
-       0,     0,     0,     7,    11,    12,    10,     5,     3,    49,
-      47,    46,    48,    50,    51,    38,    40,    43,     0,     0,
-       0,    17,     0,     0,    32,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,    59,    62,    60,    61,    64,
-      63,     0,     0,     0,     0,    36,     0,     0,     0,     0,
-       0,     0,     0,     0,    41,    43,    42,    45,    44,    39,
-       0,    20,     0,    18,    19,     0,     0,    33,    34,    35,
-       0,     0,     0,    52,     0,    15,    22,     0,    30,    28,
-       0,     0,     0,     0,     0,    53,     0,     0,     0,     0,
-      31,    29,    37,    57,    56,    58,    55,    54,    13,    14,
-      21,    16
+       0,     0,     8,     4,     0,     0,     0,    17,    18,    10,
+      11,     0,     0,     1,     0,    20,    21,    19,     0,     0,
+       0,    48,     0,     0,     0,     9,     6,     7,    12,     5,
+       3,    44,    42,    41,    43,    40,    32,    34,    37,     0,
+       0,    26,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,     0,     0,    30,     0,     0,     0,    53,    56,
+      54,    55,    58,    57,     0,     0,     0,    15,    49,    45,
+      51,    50,    52,     0,     0,    35,    37,    36,    39,    38,
+      33,     0,     0,    27,    28,    29,     0,     0,     0,    46,
+       0,    24,    22,     0,     0,     0,    14,    16,    47,     0,
+      25,    23,    31,     0,     0,     0,    13
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-      -1,     2,     3,    12,    13,    43,   104,    44,    50,    51,
-     107,    16,    17,    18,    19,    96,   111,    53,    54,    20,
-      21,    55,    46,    47,    22,    58,   126,    71
+      -1,     2,     3,    12,    13,    45,    15,    76,    16,    17,
+      18,    19,    92,   104,    50,    51,    20,    21,    52,    47,
+      48,    22,    32,    33,    83,    74
 };
 
 /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
    STATE-NUM.  */
-#define YYPACT_NINF -36
+#define YYPACT_NINF -22
 static const yytype_int8 yypact[] =
 {
-      -5,     6,    10,   -36,   -17,    38,    44,    26,    27,    47,
-      65,    24,    16,   -36,     5,    51,    59,   -36,   -36,   -36,
-     -36,    68,    16,   -36,    57,    57,    58,   -36,   -36,   -36,
-      31,    31,   111,   -36,   -36,   -36,   -36,   -36,   -36,   -36,
-     -36,   -36,   -36,   -36,   -36,    41,    53,    71,    14,    40,
-      92,    64,    57,    96,    67,    21,    97,    20,    98,    57,
-      57,    57,    57,    57,   100,   -36,   -36,   -36,   -36,   -36,
-     -36,    57,   101,    58,    58,    41,   106,    31,    31,    57,
-     102,    86,   111,    80,    53,   -36,    53,   -36,   -36,   -36,
-      57,    41,   123,   -36,   -36,    16,    88,   -36,   -36,    41,
-      16,   105,   104,    90,   107,    60,   108,   110,   -36,   -36,
-      16,   117,   115,   -35,   -35,   -36,   114,    57,   123,   116,
-     -36,   -36,   -36,   -36,   -36,   -36,   -36,   -36,   -36,   -36,
-     -36,   -36
+      -3,    -2,    18,   -22,   -16,    19,    31,    27,    38,    56,
+      44,    58,    17,   -22,    41,    42,    43,   -22,   -22,   -22,
+     -22,    45,    17,   -22,    40,   -22,   -22,   -22,    36,    36,
+      70,    71,    76,    51,    96,   -22,   -22,   -22,   -22,   -22,
+     -22,   -22,   -22,   -22,   -22,   -22,     0,     5,    55,    40,
+      78,    46,    29,    80,    40,    44,    59,    12,    81,    40,
+      40,    40,    40,    40,     0,    93,    36,    36,   -22,   -22,
+     -22,   -22,   -22,   -22,    40,    90,    83,    22,   -22,   -22,
+     -22,   -22,   -22,    64,    85,     5,   -22,     5,   -22,   -22,
+     -22,    17,    63,   -22,   -22,     0,    17,    88,    40,    44,
+      40,   -22,   -22,    17,   100,    97,   -22,   -22,   -22,   -15,
+     -22,   -22,   -22,    40,   -20,    92,   -22
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -36,   -36,   -36,   -36,    -9,    -1,    19,     0,   -36,    32,
-      22,   -36,   -36,   -36,   -36,   -36,   -36,   112,    30,   -36,
-     -36,   -20,    52,    18,    35,    62,    25,    87
+     -22,   -22,   -22,   -22,   -10,    -1,   -22,    15,   -22,   -22,
+     -22,   -22,   -22,   -22,    87,    16,   -22,   -22,   -21,    25,
+       9,   -22,    20,    62,   -22,   -22
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]].  What to do in state STATE-NUM.  If
@@ -720,60 +722,52 @@ static const yytype_int8 yypgoto[] =
 #define YYTABLE_NINF -1
 static const yytype_uint8 yytable[] =
 {
-      14,    15,     1,    33,    45,    48,   123,   124,   125,     4,
-      23,    14,    15,    38,     5,     6,     7,     8,     9,     4,
-      24,    14,    15,    10,     5,     6,     7,     8,     9,    27,
-      29,    28,    75,    10,    39,    40,    41,    42,    64,     5,
-       6,    59,    60,    81,    82,    11,    32,    52,    59,    60,
-      34,    91,    65,    66,    67,    68,    69,    70,    25,    99,
-      39,    40,    41,    42,    26,     5,     6,    30,    59,    60,
-     105,    65,    66,    67,    68,    69,    70,    85,    85,    87,
-      88,    89,    61,    62,   117,    31,   108,    59,    60,    73,
-      74,   112,    77,    78,    14,    15,    35,   105,    49,    14,
-      15,   120,   109,   110,    36,    93,    94,    97,    98,    14,
-      15,    84,    86,    37,    57,    63,    72,    76,    80,    95,
-     100,    83,    90,    92,   101,   103,   106,   113,   114,    11,
-     116,   121,   118,   119,   122,   128,   129,   131,   115,   127,
-     130,     0,    79,    56,   102
+      14,     4,    35,    46,     1,   115,     5,     6,     7,    59,
+      60,    14,    40,     8,    59,    60,     9,    10,    23,    11,
+       4,    14,    25,    24,    26,     5,     6,     7,    64,    59,
+      60,   113,     8,    77,    27,     9,    61,    62,    11,    41,
+      42,    43,    44,    41,    42,    43,    44,    31,    98,    28,
+      49,    59,    60,    95,    80,    81,    82,    11,    59,    60,
+      29,    11,    68,    69,    70,    71,    72,    73,    86,    86,
+      88,    89,    90,    66,    67,   102,   103,    77,    30,   109,
+      34,   101,    93,    94,    85,    87,   105,    36,    37,    38,
+      14,    39,   114,   110,    54,    14,    56,    55,    57,    58,
+      63,    65,    14,    75,    91,    79,    96,    84,    97,   100,
+      99,   106,   111,   107,   112,   116,    53,    78,     0,   108
 };
 
 static const yytype_int8 yycheck[] =
 {
-       1,     1,     7,    12,    24,    25,    41,    42,    43,     3,
-       0,    12,    12,    22,     8,     9,    10,    11,    12,     3,
-      37,    22,    22,    17,     8,     9,    10,    11,    12,     3,
-       3,     5,    52,    17,     3,     4,     5,     6,    24,     8,
-       9,    27,    28,    23,    24,    39,    22,    16,    27,    28,
-      45,    71,    31,    32,    33,    34,    35,    36,    20,    79,
-       3,     4,     5,     6,    20,     8,     9,    20,    27,    28,
-      90,    31,    32,    33,    34,    35,    36,    59,    60,    61,
-      62,    63,    29,    30,    24,    20,    95,    27,    28,    25,
-      26,   100,    25,    26,    95,    95,    45,   117,    40,   100,
-     100,   110,    14,    15,    45,    73,    74,    77,    78,   110,
-     110,    59,    60,    45,     3,    44,    24,    21,    21,    13,
-      18,    23,    22,    22,    38,    45,     3,    22,    24,    39,
-      23,    14,    24,    23,    19,    21,   117,    21,   103,   114,
-     118,    -1,    55,    31,    82
+       1,     3,    12,    24,     7,    25,     8,     9,    10,    29,
+      30,    12,    22,    15,    29,    30,    18,    19,     0,    21,
+       3,    22,     3,    39,     5,     8,     9,    10,    49,    29,
+      30,    46,    15,    54,     3,    18,    31,    32,    21,     3,
+       4,     5,     6,     3,     4,     5,     6,     3,    26,    22,
+      14,    29,    30,    74,    42,    43,    44,    21,    29,    30,
+      22,    21,    33,    34,    35,    36,    37,    38,    59,    60,
+      61,    62,    63,    27,    28,    12,    13,    98,    22,   100,
+      22,    91,    66,    67,    59,    60,    96,    46,    46,    46,
+      91,    46,   113,   103,    24,    96,    20,    26,    47,     3,
+      45,    23,   103,    23,    11,    46,    16,    26,    25,    24,
+      46,    23,    12,    98,    17,    23,    29,    55,    -1,    99
 };
 
 /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
    symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,     7,    47,    48,     3,     8,     9,    10,    11,    12,
-      17,    39,    49,    50,    51,    53,    57,    58,    59,    60,
-      65,    66,    70,     0,    37,    20,    20,     3,     5,     3,
-      20,    20,    22,    50,    45,    45,    45,    45,    50,     3,
-       4,     5,     6,    51,    53,    67,    68,    69,    67,    40,
-      54,    55,    16,    63,    64,    67,    63,     3,    71,    27,
-      28,    29,    30,    44,    24,    31,    32,    33,    34,    35,
-      36,    73,    24,    25,    26,    67,    21,    25,    26,    73,
-      21,    23,    24,    23,    68,    69,    68,    69,    69,    69,
-      22,    67,    22,    55,    55,    13,    61,    64,    64,    67,
-      18,    38,    71,    45,    52,    67,     3,    56,    50,    14,
-      15,    62,    50,    22,    24,    70,    23,    24,    24,    23,
-      50,    14,    19,    41,    42,    43,    72,    72,    21,    52,
-      56,    21
+       0,     7,    49,    50,     3,     8,     9,    10,    15,    18,
+      19,    21,    51,    52,    53,    54,    56,    57,    58,    59,
+      64,    65,    69,     0,    39,     3,     5,     3,    22,    22,
+      22,     3,    70,    71,    22,    52,    46,    46,    46,    46,
+      52,     3,     4,     5,     6,    53,    66,    67,    68,    14,
+      62,    63,    66,    62,    24,    26,    20,    47,     3,    29,
+      30,    31,    32,    45,    66,    23,    27,    28,    33,    34,
+      35,    36,    37,    38,    73,    23,    55,    66,    71,    46,
+      42,    43,    44,    72,    26,    67,    68,    67,    68,    68,
+      68,    11,    60,    63,    63,    66,    16,    25,    26,    46,
+      24,    52,    12,    13,    61,    52,    23,    55,    70,    66,
+      52,    12,    17,    46,    66,    25,    23
 };
 
 #define yyerrok		(yyerrstatus = 0)
@@ -1587,8 +1581,9 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 124 "syntax.y"
+#line 132 "syntax.y"
     {
+	nodo_pgm = nodo_programa;
 	puts("COMPILACION EXITOSA\n");
 	puts("-------------------\n");
 }
@@ -1597,7 +1592,7 @@ yyreduce:
   case 3:
 
 /* Line 1455 of yacc.c  */
-#line 130 "syntax.y"
+#line 139 "syntax.y"
     {
 
 	// nodo_declaracion_variable = nodo_sentencias;
@@ -1613,7 +1608,7 @@ yyreduce:
   case 4:
 
 /* Line 1455 of yacc.c  */
-#line 142 "syntax.y"
+#line 151 "syntax.y"
     {
 	if(DEBUG){
 		puts("Codigo sin variables\n");
@@ -1625,43 +1620,108 @@ yyreduce:
   case 5:
 
 /* Line 1455 of yacc.c  */
-#line 150 "syntax.y"
+#line 159 "syntax.y"
     {
 	if(DEBUG) {
 		puts("sentencia : asignacion PUNTO_Y_COMA\n");
 		puts("-------------------\n");		
 	}
+
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_asignacion,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+
+
 }
     break;
 
   case 6:
 
 /* Line 1455 of yacc.c  */
-#line 159 "syntax.y"
+#line 175 "syntax.y"
     {
-	if(DEBUG){
-		puts("Una sola sentencia\n");
-		puts("-------------------\n");
+	if(DEBUG) {
+		puts("sentencia : between PUNTO_Y_COMA\n");
+		puts("-------------------\n");		
 	}
+
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_between,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+
+
 }
     break;
 
   case 7:
 
 /* Line 1455 of yacc.c  */
-#line 167 "syntax.y"
+#line 191 "syntax.y"
     {
 	if(DEBUG) {
-		puts("Varias sentencias\n");
-		puts("-------------------\n");
+		puts("sentencia : average PUNTO_Y_COMA\n");
+		puts("-------------------\n");		
 	}
+
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_average,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+
+
 }
     break;
 
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 175 "syntax.y"
+#line 208 "syntax.y"
+    {
+	if(DEBUG){
+		puts("Una sola sentencia\n");
+		puts("-------------------\n");
+		// printf("la pila esta vacia? %d\n",pila_vacia(&cola_sentencias) );
+	}
+		t_info_sentencias * sentencia_apilada = sacar_de_cola(&cola_sentencias);
+		nodo_sentencias = sentencia_apilada->a;
+		// puts("sacando de cola");
+		// recorrer_en_orden(sentencia_apilada->a,&visitar);
+}
+    break;
+
+  case 9:
+
+/* Line 1455 of yacc.c  */
+#line 221 "syntax.y"
+    {
+	// if(DEBUG) {
+		puts("Varias sentencias\n");
+		puts("-------------------\n");
+	// }
+	// nodo_sentencias = nodo_sentencia;
+	// nodo_sentencias->nodo_der = nodo_sentencia;
+	t_info_sentencias * sentencia_apilada = sacar_de_cola(&cola_sentencias);
+	nodo_sentencias->nodo_der = sentencia_apilada->a;
+	nodo_sentencias->nodo_der->padre = nodo_sentencias;
+	nodo_sentencias = sentencia_apilada->a;
+		// puts("sacando de cola");
+		// recorrer_en_orden(sentencia_apilada->a,&visitar);
+
+
+
+	// nodo_sentencias = crear_nodo_arbol(crear_info("NUEVA"),nodo_sentencias,sentencia_apilada->a);
+}
+    break;
+
+  case 10:
+
+/* Line 1455 of yacc.c  */
+#line 241 "syntax.y"
     {
 
 	// nodo_sentencia = nodo_condicional;
@@ -1669,90 +1729,117 @@ yyreduce:
 		puts("sentencia : condicional \n");
 		puts("-------------------\n");		
 	}
-}
-    break;
+	
+	//para esta altura todas las sentencias del bloque deberian haber sido desencoladas
+	printf("La cola de sentencias esta vacia? %d\n",cola_vacia(&cola_sentencias));
+	cola_sentencias = sacar_de_pila_de_colas(&pila_de_colas);
 
-  case 9:
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_condicional,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
 
-/* Line 1455 of yacc.c  */
-#line 186 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("sentencia : iteracion\n");
-		puts("-------------------\n");		
-	}
-}
-    break;
-
-  case 10:
-
-/* Line 1455 of yacc.c  */
-#line 194 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("Operacion de entrada salidas\n");
-		puts("-------------------\n");		
-	}
 }
     break;
 
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 202 "syntax.y"
+#line 262 "syntax.y"
     {
 	if(DEBUG) {
-		puts("Operacion de iguales\n");
-		puts("-------------------\n");	
+		puts("sentencia : iteracion\n");
+		puts("-------------------\n");		
 	}
+
+	//para esta altura todas las sentencias del bloque deberian haber sido desencoladas
+	printf("La cola de sentencias esta vacia? %d\n",cola_vacia(&cola_sentencias));
+	cola_sentencias = sacar_de_pila_de_colas(&pila_de_colas);
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_iteracion,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+		// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+	// print_t(nodo_sentencia);
+	// nodo_sentencia = nodo_iteracion;
 }
     break;
 
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 210 "syntax.y"
+#line 281 "syntax.y"
     {
 	if(DEBUG) {
-		puts("Operacioon de filters\n");
-		puts("-------------------\n");
+		puts("Operacion de entrada salidas\n");
+		puts("-------------------\n");		
 	}
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_io,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+		// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
 }
     break;
 
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 218 "syntax.y"
+#line 294 "syntax.y"
     {
 	if(DEBUG) {
-		puts("iguales : PR_IGUALES PAR_ABRE expresion COMA COR_ABRE lista_expresiones COR_CIERRA PAR_CIERRA\n");
-		puts("-------------------\n");
+		puts("between : PR_BETWEEN  PAR_ABRE TOKEN_ID COMA COR_ABRE expresion PUNTO_Y_COMA expresion COR_CIERRA PAR_CIERRA\n");
+		puts("-------------------\n");		
 	}
-	(yyval.str_val) = "IGUALES";
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_expresiones);
+
+
+	t_nodo_arbol * p_if_cond1 = crear_nodo_arbol(crear_info("<"),crear_hoja(crear_info((yyvsp[(3) - (10)].str_val))),p_info1->a);
+	t_nodo_arbol * p_if_cond2 = crear_nodo_arbol(crear_info(">"),crear_hoja(crear_info((yyvsp[(3) - (10)].str_val))),p_info2->a);
+
+	t_nodo_arbol * p_if = crear_nodo_arbol(crear_info("AND"),p_if_cond1,p_if_cond2);
+
+
+
+	t_nodo_arbol * p_if_then = crear_nodo_arbol(crear_info("<V.F>"),crear_hoja(crear_info("1")),crear_hoja(crear_info("0")));
+
+
+
+	nodo_between = crear_nodo_arbol(crear_info("BETWEEN"),p_if,p_if_then);
+
+
+
 }
     break;
 
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 227 "syntax.y"
+#line 322 "syntax.y"
     {
 	if(DEBUG) {
-		puts("Lista de expresiones\n");
-		puts("-------------------\n");		
+		puts("average : PR_AVERAGE PAR_ABRE COR_ABRE lista_expresiones COR_CIERRA PAR_CIERRA \n");
+		puts("-------------------\n");
 	}
+
+	while(!pila_vacia(&pila_expresiones) )
+	{
+		t_info_sentencias * p_info = sacar_de_pila(&pila_expresiones);
+		// printf("asdasd\n");
+	}
+
 }
     break;
 
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 235 "syntax.y"
+#line 337 "syntax.y"
     {
 	if(DEBUG) {
-		puts("Última expresion\n");
-		puts("-------------------\n");		
+		puts("lista_expresiones : expresion \n");
+		puts("-------------------\n");
 	}
 }
     break;
@@ -1760,108 +1847,47 @@ yyreduce:
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 243 "syntax.y"
+#line 345 "syntax.y"
     {
 	if(DEBUG) {
-		puts("filter : PR_FILTER PAR_ABRE condicion COMA COR_ABRE lista_variables COR_CIERRA PAR_CIERRA\n");
+		puts("lista_expresiones : expresion COMA lista_expresiones \n");
 		puts("-------------------\n");
 	}
-	(yyval.str_val) = "FILTER";
 }
     break;
 
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 252 "syntax.y"
+#line 354 "syntax.y"
     {
-	puts("condicion_filter : comparacion_filter\n");
-	puts("-------------------\n");
+	if(DEBUG) {
+		puts("io : entrada\n");
+		puts("-------------------\n");
+	}
+
+	nodo_io = nodo_entrada;
+
 }
     break;
 
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 258 "syntax.y"
+#line 365 "syntax.y"
     {
-	puts("condicion_filter : comparacion_filter and comparacion_filter\n");
-	puts("-------------------\n");
+	if(DEBUG) {
+		puts("io : salida\n");
+		puts("-------------------\n");		
+	}
+	nodo_io = nodo_salida;
 }
     break;
 
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 264 "syntax.y"
-    {
-	puts("condicion_filter : comparacion_filter or comparacion_filter\n");
-	puts("-------------------\n");
-}
-    break;
-
-  case 20:
-
-/* Line 1455 of yacc.c  */
-#line 270 "syntax.y"
-    {
-	puts("comparacion_filter : OP_FILTER comparador expresion\n");
-	puts("-------------------\n");
-}
-    break;
-
-  case 21:
-
-/* Line 1455 of yacc.c  */
-#line 282 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("Lista de variables\n");
-		puts("-------------------\n");		
-	}
-}
-    break;
-
-  case 22:
-
-/* Line 1455 of yacc.c  */
-#line 290 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("Ultima variable\n");
-		puts("-------------------\n");
-	}
-}
-    break;
-
-  case 23:
-
-/* Line 1455 of yacc.c  */
-#line 298 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("io : entrada\n");
-		puts("-------------------\n");
-	}
-}
-    break;
-
-  case 24:
-
-/* Line 1455 of yacc.c  */
-#line 306 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("io : salida\n");
-		puts("-------------------\n");		
-	}
-}
-    break;
-
-  case 25:
-
-/* Line 1455 of yacc.c  */
-#line 314 "syntax.y"
+#line 374 "syntax.y"
     {
 	if(DEBUG) {
 		puts("entrada : READ id\n");
@@ -1873,13 +1899,14 @@ yyreduce:
 		puts(mjs);
 		exit(1);
 	}
+	nodo_entrada = crear_nodo_arbol(crear_info("READ"),crear_hoja(crear_info((yyvsp[(2) - (2)].str_val))),crear_hoja(crear_info("READ")));
 }
     break;
 
-  case 26:
+  case 20:
 
 /* Line 1455 of yacc.c  */
-#line 328 "syntax.y"
+#line 389 "syntax.y"
     {
 	if(DEBUG) {
 		puts("salida : PR_WRITE id\n");
@@ -1892,39 +1919,46 @@ yyreduce:
 		puts(mjs);
 		exit(1);
 	}
+	nodo_salida = crear_nodo_arbol(crear_info("WRITE"),crear_hoja(crear_info((yyvsp[(2) - (2)].str_val))),crear_hoja(crear_info("WRITE")));
 
 }
     break;
 
-  case 27:
+  case 21:
 
 /* Line 1455 of yacc.c  */
-#line 344 "syntax.y"
+#line 406 "syntax.y"
     {
 	if(DEBUG) {
 		puts("salida : PR_WRITE cte\n");
 		puts("-------------------\n");	
 	}
+	nodo_salida = crear_nodo_arbol(crear_info("WRITE"),crear_hoja(crear_info((yyvsp[(2) - (2)].str_val))),crear_hoja(crear_info("WRITE")));
 
 }
     break;
 
-  case 28:
+  case 22:
 
 /* Line 1455 of yacc.c  */
-#line 353 "syntax.y"
+#line 416 "syntax.y"
     {
 	if(DEBUG) {
 		puts("Condicional sin ELSE\n");
 		puts("-------------------\n");
 	}
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_condiciones);
+	//le pongo null porque ahi iria el ELSE y no hay
+	nodo_then = crear_nodo_arbol(crear_info("THEN"),nodo_sentencias_then,NULL);
+	nodo_condicional = crear_nodo_arbol(crear_info("IF"),p_info->a,nodo_then);
 }
     break;
 
-  case 29:
+  case 23:
 
 /* Line 1455 of yacc.c  */
-#line 361 "syntax.y"
+#line 429 "syntax.y"
     {
 
 
@@ -1932,79 +1966,116 @@ yyreduce:
 		puts("Condicional con ELSE\n");
 		puts("-------------------\n");	
 	}
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_condiciones);
+	nodo_then = crear_nodo_arbol(crear_info("<V.F>"),nodo_sentencias_then,nodo_sentencias_else);
+	nodo_condicional = crear_nodo_arbol(crear_info("IF"),p_info->a,nodo_then);
+
 }
     break;
 
-  case 30:
+  case 24:
 
 /* Line 1455 of yacc.c  */
-#line 371 "syntax.y"
+#line 444 "syntax.y"
     {
 	if(DEBUG) {
 		puts("PR_THEN lista_sentencias\n");
 		puts("-------------------\n");	
 	}
+	nodo_sentencias_then = obtener_raiz(nodo_sentencias);
 
 }
     break;
 
-  case 31:
+  case 25:
 
 /* Line 1455 of yacc.c  */
-#line 380 "syntax.y"
+#line 454 "syntax.y"
     {
 	if(DEBUG) {
 		puts("PR_ELSE lista_sentencias\n");
 		puts("-------------------\n");	
 	}
+	nodo_sentencias_else = obtener_raiz(nodo_sentencias);
 }
     break;
 
-  case 32:
+  case 26:
 
 /* Line 1455 of yacc.c  */
-#line 388 "syntax.y"
+#line 463 "syntax.y"
     {
-	if(DEBUG) {
+	// if(DEBUG) {
 		puts("condicion : comparacion\n");
 		puts("-------------------\n");
-	}
+	// }
+
+	insertar_en_pila_de_colas(&pila_de_colas,cola_sentencias);
+	crear_cola(&cola_sentencias);
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_comparaciones);
+	nodo_condicion = p_info->a;
+	insertar_en_pila(&pila_condiciones,crear_info_sentencias(nodo_condicion));
+
 }
     break;
 
-  case 33:
+  case 27:
 
 /* Line 1455 of yacc.c  */
-#line 396 "syntax.y"
+#line 479 "syntax.y"
     {
-	if(DEBUG) {
+	// if(DEBUG) {
 		puts("condicion : comparacion and comparacion\n");
 		puts("-------------------\n");		
-	}
+	// }
+
+	insertar_en_pila_de_colas(&pila_de_colas,cola_sentencias);
+	crear_cola(&cola_sentencias);
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_comparaciones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_comparaciones);
+
+	nodo_condicion = crear_nodo_arbol(crear_info("AND"),p_info1->a,p_info2->a);
+	insertar_en_pila(&pila_condiciones,crear_info_sentencias(nodo_condicion));
+
+
 }
     break;
 
-  case 34:
+  case 28:
 
 /* Line 1455 of yacc.c  */
-#line 404 "syntax.y"
+#line 498 "syntax.y"
     {
-	if(DEBUG) {
+	// if(DEBUG) {
 		puts("condicion : comparacion or comparacion\n");
 		puts("-------------------\n");		
-	}
+	// }
+
+	insertar_en_pila_de_colas(&pila_de_colas,cola_sentencias);
+	crear_cola(&cola_sentencias);
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_comparaciones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_comparaciones);
+
+	nodo_condicion = crear_nodo_arbol(crear_info("OR"),p_info1->a,p_info2->a);
+	insertar_en_pila(&pila_condiciones,crear_info_sentencias(nodo_condicion));
+
 }
     break;
 
-  case 35:
+  case 29:
 
 /* Line 1455 of yacc.c  */
-#line 412 "syntax.y"
+#line 516 "syntax.y"
     {
-	if(DEBUG) {
+	// if(DEBUG) {
+	// puts($2);
 		puts("comparacion : expresion comparador expresion\n");
 		puts("-------------------\n");
-	}
+	// }
 	char mjs_error[60];
 	/* comparo que para operar entre terminos, ambos tengan el mismo tipo de datos*/ 
 	if(!tipos_iguales((yyvsp[(1) - (3)].str_val),(yyvsp[(3) - (3)].str_val),mjs_error,linecount)) 
@@ -2012,38 +2083,58 @@ yyreduce:
 		puts(mjs_error);
 		exit(1);
 	}
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_expresiones);
+	nodo_comparacion = crear_nodo_arbol(crear_info((yyvsp[(2) - (3)].str_val)),p_info1->a,p_info2->a);
+
+	// puts("a ver esto ahora");
+	// nodo_comparacion = crear_nodo_arbol(crear_info($2),nodo_expresion,nodo_termino);
+	insertar_en_pila(&pila_comparaciones,crear_info_sentencias(nodo_comparacion));
 }
     break;
 
-  case 36:
+  case 30:
 
 /* Line 1455 of yacc.c  */
-#line 427 "syntax.y"
+#line 540 "syntax.y"
     {
 	if(DEBUG) {
 		puts("comparacion : PR_NOT expresion comparador expresion\n");
 		puts("-------------------\n");
 	}
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_expresiones);
+
+	nodo_comparacion = crear_nodo_arbol(crear_info("NOT"),p_info->a,NULL);
+	insertar_en_pila(&pila_comparaciones,crear_info_sentencias(nodo_comparacion));
+
 }
     break;
 
-  case 37:
+  case 31:
 
 /* Line 1455 of yacc.c  */
-#line 435 "syntax.y"
+#line 554 "syntax.y"
     {
 	if(DEBUG) {
 		puts("iteracion : PR_WHILE PAR_ABRE condicion PAR_CIERRA PR_DO lista_sentencias PR_ENDWHILE\n");
 		puts("-------------------\n");
 	}
 
+	t_info_sentencias * p_info = sacar_de_pila(&pila_condiciones);
+	t_nodo_arbol * sentencias_del_do = obtener_raiz(nodo_sentencias);
+	// nodo_do = crear_nodo_arbol(crear_info("DO"),sentencias_del_do,NULL);
+	nodo_iteracion = crear_nodo_arbol(crear_info("WHILE"),p_info->a,sentencias_del_do);
+	sentencias_del_do->padre = nodo_iteracion;
+
 }
     break;
 
-  case 38:
+  case 32:
 
 /* Line 1455 of yacc.c  */
-#line 444 "syntax.y"
+#line 569 "syntax.y"
     {
 	if(DEBUG) {
 		puts((yyvsp[(1) - (3)].str_val));
@@ -2051,20 +2142,25 @@ yyreduce:
 		puts("-------------------\n");
 	}
 
+	// printf("asignacion %s %s\n",$1,$3 );
 	/* comparo que para operar entre terminos, ambos tengan el mismo tipo de datos*/ 
-	// puts("asignacion comprobacion tipos iguales");
+	puts("asignacion comprobacion tipos iguales");
 	char mjs_error[60];
 	if(!tipos_iguales((yyvsp[(1) - (3)].str_val),(yyvsp[(3) - (3)].str_val),mjs_error, linecount)) {
 		puts(mjs_error);
 		exit(1);
 	}
+	t_info_sentencias * p_info = sacar_de_pila(&pila_expresiones);
+	/* guardo la asignacion en el arbol de ejecucion */
+	nodo_asignacion = crear_nodo_arbol(crear_info(":="),crear_hoja(crear_info((yyvsp[(1) - (3)].str_val))),p_info->a);
+
 }
     break;
 
-  case 39:
+  case 33:
 
 /* Line 1455 of yacc.c  */
-#line 461 "syntax.y"
+#line 591 "syntax.y"
     {
 	if(DEBUG) {
 		printf("expresion %s %s\n",(yyvsp[(1) - (3)].str_val),(yyvsp[(3) - (3)].str_val) );
@@ -2102,13 +2198,24 @@ yyreduce:
 		exit(1);
 	}
 
+
+	/* guardo la expresion en el arbol de ejecucion */
+
+	t_info_sentencias * p_nodo_factor1 = sacar_de_pila(&pila_factores);
+
+	t_info_sentencias * p_nodo_factor2 = sacar_de_pila(&pila_factores);
+
+	nodo_expresion = crear_nodo_arbol(crear_info("++"),p_nodo_factor1->a,p_nodo_factor2->a);
+
+	insertar_en_pila(&pila_expresiones,crear_info_sentencias(nodo_expresion));
+
 }
     break;
 
-  case 40:
+  case 34:
 
 /* Line 1455 of yacc.c  */
-#line 501 "syntax.y"
+#line 642 "syntax.y"
     {
 	if(DEBUG) {
 	printf("%s\n",(yyvsp[(1) - (1)].str_val) );
@@ -2117,13 +2224,19 @@ yyreduce:
 	}
 
 	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
+	
+	/* guardo la expresion en el arbol de ejecucion */
+	t_info_sentencias * p_nodo_termino = sacar_de_pila(&pila_terminos);
+	nodo_expresion = p_nodo_termino->a;
+	insertar_en_pila(&pila_expresiones,p_nodo_termino);
+
 }
     break;
 
-  case 41:
+  case 35:
 
 /* Line 1455 of yacc.c  */
-#line 512 "syntax.y"
+#line 659 "syntax.y"
     {
 	if(DEBUG) {
 		printf("%s %s\n", (yyvsp[(1) - (3)].str_val), (yyvsp[(3) - (3)].str_val));
@@ -2143,13 +2256,23 @@ yyreduce:
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/* guardo la expresion en el arbol de ejecucion */
+	t_info_sentencias * p_nodo_expresion = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_nodo_termino =  sacar_de_pila(&pila_terminos);
+	nodo_expresion = crear_nodo_arbol(crear_info("+"),p_nodo_expresion->a,p_nodo_termino->a);
+	insertar_en_pila(&pila_expresiones,crear_info_sentencias(nodo_expresion));
+
+	free(p_nodo_expresion);
+	free(p_nodo_termino);
+
 }
     break;
 
-  case 42:
+  case 36:
 
 /* Line 1455 of yacc.c  */
-#line 534 "syntax.y"
+#line 691 "syntax.y"
     {
 	if(DEBUG) {
 		printf("%s %s\n", (yyvsp[(1) - (3)].str_val), (yyvsp[(3) - (3)].str_val));
@@ -2170,26 +2293,41 @@ yyreduce:
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/* guardo la expresion en el arbol de ejecucion */
+	t_info_sentencias * p_nodo_expresion = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_nodo_termino =  sacar_de_pila(&pila_terminos);
+	nodo_expresion = crear_nodo_arbol(crear_info("-"),p_nodo_expresion->a,p_nodo_termino->a);
+	insertar_en_pila(&pila_expresiones,crear_info_sentencias(nodo_expresion));
+
+	free(p_nodo_expresion);
+	free(p_nodo_termino);
+
 }
     break;
 
-  case 43:
+  case 37:
 
 /* Line 1455 of yacc.c  */
-#line 557 "syntax.y"
+#line 724 "syntax.y"
     {
 	if(DEBUG) {
 	printf("%s\n",(yyvsp[(1) - (1)].str_val) );
 		puts("termino : factor\n");
 		puts("-------------------\n");
 	}
+	/*guardo el termino en el arbol de ejecucion*/
+	t_info_sentencias * p_nodo_factor = sacar_de_pila(&pila_factores);
+	nodo_termino = p_nodo_factor->a;
+	insertar_en_pila(&pila_terminos,p_nodo_factor);
+
 }
     break;
 
-  case 44:
+  case 38:
 
 /* Line 1455 of yacc.c  */
-#line 566 "syntax.y"
+#line 738 "syntax.y"
     {
 	if(DEBUG) {
 	printf("%s %s\n", (yyvsp[(1) - (3)].str_val),(yyvsp[(3) - (3)].str_val));
@@ -2210,13 +2348,24 @@ yyreduce:
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/*guardo el termino en el arbol de ejecucion*/
+	t_info_sentencias * p_nodo_factor = sacar_de_pila(&pila_factores);
+	t_info_sentencias * p_nodo_termino = sacar_de_pila(&pila_terminos);
+
+	nodo_termino = crear_nodo_arbol(crear_info("/"),p_nodo_termino->a,p_nodo_factor->a);
+	insertar_en_pila(&pila_terminos,crear_info_sentencias(nodo_termino));
+
+	free(p_nodo_factor);
+	free(p_nodo_termino);
+
 }
     break;
 
-  case 45:
+  case 39:
 
 /* Line 1455 of yacc.c  */
-#line 589 "syntax.y"
+#line 772 "syntax.y"
     {
 	if(DEBUG) {
 	printf("%s %s\n", (yyvsp[(1) - (3)].str_val),(yyvsp[(3) - (3)].str_val));
@@ -2238,15 +2387,44 @@ yyreduce:
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/*guardo el termino en el arbol de ejecucion*/
+	t_info_sentencias * p_nodo_factor = sacar_de_pila(&pila_factores);
+	t_info_sentencias * p_nodo_termino = sacar_de_pila(&pila_terminos);
+
+	nodo_termino = crear_nodo_arbol(crear_info("*"),p_nodo_termino->a,p_nodo_factor->a);
+	insertar_en_pila(&pila_terminos,crear_info_sentencias(nodo_termino));
+
+	free(p_nodo_factor);
+	free(p_nodo_termino);
+
 }
     break;
 
-  case 46:
+  case 40:
 
 /* Line 1455 of yacc.c  */
-#line 613 "syntax.y"
+#line 807 "syntax.y"
     {
 	if(DEBUG) {
+		// puts($1);
+		puts("factor : between \n");
+		puts("-------------------\n");	
+	}
+	insertar_en_pila(&pila_factores,crear_info_sentencias(crear_nodo_arbol(crear_info("BETWEEN"),nodo_between,NULL)));
+	// nodo_factor = crear_nodo_arbol(crear_info("IGUALES"),nodo_iguales,NULL);
+	//nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_iguales,NULL);
+	//insertar_en_pila(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+}
+    break;
+
+  case 41:
+
+/* Line 1455 of yacc.c  */
+#line 820 "syntax.y"
+    {
+	if(DEBUG) {
+		// printf("%s\n",$1);
 		puts("factor : cte\n");
 		puts("-------------------\n");		
 	}
@@ -2255,15 +2433,20 @@ yyreduce:
 	agregar_cte_a_TS(TIPO_STRING,(yyvsp[(1) - (1)].str_val), 0,0.0,linecount);
 	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
 
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info((yyvsp[(1) - (1)].str_val)));
+	insertar_en_pila(&pila_factores,crear_info_sentencias(nodo_factor));
+	// nodo_factor = crear_hoja(crear_info($1));
+
 	puts((yyvsp[(1) - (1)].str_val));
 
 }
     break;
 
-  case 47:
+  case 42:
 
 /* Line 1455 of yacc.c  */
-#line 628 "syntax.y"
+#line 841 "syntax.y"
     {
 	if(DEBUG) {
 		printf("%d\n",(yyvsp[(1) - (1)].intval));
@@ -2276,13 +2459,20 @@ yyreduce:
 	sprintf(temp,"%d",(yyvsp[(1) - (1)].intval));
 	(yyval.str_val) = temp;
 	agregar_cte_a_TS(TIPO_INT,NULL, (yyvsp[(1) - (1)].intval),0.0,linecount);
+
+	// puts("agregando a factooooor intttttttttttttttttttttttttttttt");
+	// puts(temp);
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info(temp));
+	insertar_en_pila(&pila_factores,crear_info_sentencias(nodo_factor));
+	// nodo_factor = crear_hoja(crear_info(temp));
 }
     break;
 
-  case 48:
+  case 43:
 
 /* Line 1455 of yacc.c  */
-#line 643 "syntax.y"
+#line 863 "syntax.y"
     {
 	if(DEBUG) {
 		printf("%.4f\n",(yyvsp[(1) - (1)].val));
@@ -2295,63 +2485,162 @@ yyreduce:
 	sprintf(temp,"%.4f",(yyvsp[(1) - (1)].val));
 	(yyval.str_val) = temp;
 	agregar_cte_a_TS(TIPO_FLOAT,NULL, 0,(yyvsp[(1) - (1)].val),linecount);
+
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info(temp));
+	insertar_en_pila(&pila_factores,crear_info_sentencias( nodo_factor));
+	// nodo_factor = crear_hoja(crear_info(temp));
+}
+    break;
+
+  case 44:
+
+/* Line 1455 of yacc.c  */
+#line 883 "syntax.y"
+    {
+	if(DEBUG) {
+		puts("factor : TOKEN_ID\n");
+		puts("-------------------\n");
+	}
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info((yyvsp[(1) - (1)].str_val)));
+	insertar_en_pila(&pila_factores,crear_info_sentencias(nodo_factor ));
+	// nodo_factor = crear_hoja(crear_info(temp));
+}
+    break;
+
+  case 45:
+
+/* Line 1455 of yacc.c  */
+#line 902 "syntax.y"
+    {
+	// if(DEBUG) {
+		puts("declaracion_variables : PR_DECVAR linea_de_declaracion_de_tipos PR_ENDDEC PUNTO_Y_COMA\n");
+		puts("-------------------\n");
+	// }
+
+}
+    break;
+
+  case 46:
+
+/* Line 1455 of yacc.c  */
+#line 911 "syntax.y"
+    {
+	printf("El tipo de dato a agregar es %s \n", (yyvsp[(3) - (4)].str_val));
+	puts("linea_de_declaracion_de_tipos : lista_variables DOS_PUNTOS tipo_dato\n");
+	puts("-------------------\n");
+
+
+}
+    break;
+
+  case 47:
+
+/* Line 1455 of yacc.c  */
+#line 920 "syntax.y"
+    {
+	printf("El tipo de dato a agregar es %s \n", (yyvsp[(3) - (5)].str_val));
+	puts("linea_de_declaracion_de_tipos : linea_de_declaracion_de_tipos linea_de_declaracion_de_tipos\n");
+	puts("-------------------\n");
+
+	int i;
+	for (i = 0; i < variables_a_agregar; ++i)
+	{
+		agregar_variable_a_TS(temp_variables[i], (yyvsp[(3) - (5)].str_val),linecount);
+	}
+	variables_a_agregar = 0;
+}
+    break;
+
+  case 48:
+
+/* Line 1455 of yacc.c  */
+#line 936 "syntax.y"
+    {
+	printf("la variable es: %s \n",(yyvsp[(1) - (1)].str_val));
+	if(DEBUG) {
+		puts("lista_variables : TOKEN_ID \n");
+		puts("-------------------\n");
+	}
+
+	strcpy(temp_variables[variables_a_agregar],(yyvsp[(1) - (1)].str_val));
+	variables_a_agregar++;
+
 }
     break;
 
   case 49:
 
 /* Line 1455 of yacc.c  */
-#line 658 "syntax.y"
+#line 949 "syntax.y"
     {
-	if(DEBUG) {
-		puts("factor : TOKEN_ID\n");
+	printf("la variable es: %s \n",(yyvsp[(1) - (3)].str_val));
+	// if(DEBUG) {
+		puts("lista_variables : TOKEN_ID COMA lista_variables \n");
 		puts("-------------------\n");
-	}
+	// }
+
+
+	strcpy(temp_variables[variables_a_agregar],(yyvsp[(1) - (3)].str_val));
+	variables_a_agregar++;
+
 }
     break;
 
   case 50:
 
 /* Line 1455 of yacc.c  */
-#line 667 "syntax.y"
+#line 1022 "syntax.y"
     {
+	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
 	if(DEBUG) {
-		puts((yyvsp[(1) - (1)].str_val));
-		puts("factor : iguales \n");
+		puts("PR_INT\n");
 		puts("-------------------\n");	
 	}
+
+	int i;
+	for (i = 0; i < variables_a_agregar; ++i)
+	{
+		agregar_variable_a_TS(temp_variables[i], (yyvsp[(1) - (1)].str_val),linecount);
+	}
+	variables_a_agregar = 0;
 }
     break;
 
   case 51:
 
 /* Line 1455 of yacc.c  */
-#line 676 "syntax.y"
+#line 1038 "syntax.y"
     {
-	if(DEBUG) {
-		puts((yyvsp[(1) - (1)].str_val));
-		puts("factor : filter\n");
-		puts("-------------------\n");	
-	}	
+	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
+	if(DEBUG) { 
+		puts("PR_FLOAT\n");
+		puts("-------------------\n");
+	}
+	int i;
+	for (i = 0; i < variables_a_agregar; ++i)
+	{
+		agregar_variable_a_TS(temp_variables[i], (yyvsp[(1) - (1)].str_val),linecount);
+	}
+	variables_a_agregar = 0;
 }
     break;
 
   case 52:
 
 /* Line 1455 of yacc.c  */
-#line 692 "syntax.y"
+#line 1053 "syntax.y"
     {
+	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
 	if(DEBUG) {
-		puts("declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA\n");
+		puts("PR_STRING\n");
 		puts("-------------------\n");
 	}
 	int i;
-	/*agrego las variables a la tabla de simbolos, recorro en forma de cola y pila
-	los vectores que cree anteriormente para invertir el orden de los tipos de datos*/
 	for (i = 0; i < variables_a_agregar; ++i)
 	{
-		// printf("agregando %s %s\n", temp_variables[i],temp_tipo_dato[variables_a_agregar -1 - i]);
-		agregar_variable_a_TS(temp_variables[i],temp_tipo_dato[variables_a_agregar - 1- i], linecount);
+		agregar_variable_a_TS(temp_variables[i], (yyvsp[(1) - (1)].str_val),linecount);
 	}
 	variables_a_agregar = 0;
 }
@@ -2360,98 +2649,7 @@ yyreduce:
   case 53:
 
 /* Line 1455 of yacc.c  */
-#line 709 "syntax.y"
-    {
-	puts("declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA\n");
-	puts("-------------------\n");
-}
-    break;
-
-  case 54:
-
-/* Line 1455 of yacc.c  */
-#line 716 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("declaracion_variables_interna : TOKEN_ID COMA declaracion_variables_interna COMA tipo_dato\n");
-		puts("-------------------\n");
-	}
-	/* Agrego de forma temporal los datos leidos, para luego procesarlos */
-	strcpy(temp_variables[variables_a_agregar],(yyvsp[(1) - (5)].str_val));
-	strcpy(temp_tipo_dato[variables_a_agregar],(yyvsp[(5) - (5)].str_val));
-	variables_a_agregar++;
-}
-    break;
-
-  case 55:
-
-/* Line 1455 of yacc.c  */
-#line 728 "syntax.y"
-    {
-	if(DEBUG) {
-		puts("declaracion_variables_interna : TOKEN_ID COR_CIERRA PR_AS COR_ABRE tipo_dato\n");
-		puts("-------------------\n");
-	}
-	int i;
-	/*agrego las variables a la tabla de simbolos, recorro en forma de cola y pila
-	los vectores que cree anteriormente para invertir el orden de los tipos de datos*/
-	for (i = 0; i < variables_a_agregar; ++i)
-	{
-		printf("agregando %s %s\n", temp_variables[i],temp_tipo_dato[variables_a_agregar -1 - i]);
-		agregar_variable_a_TS(temp_variables[i],temp_tipo_dato[variables_a_agregar - 1 - i], linecount);
-	}
-	variables_a_agregar = 0;
-
-	/* Agrego de forma temporal los datos leidos, para luego procesarlos */
-	strcpy(temp_variables[variables_a_agregar],(yyvsp[(1) - (5)].str_val));
-	strcpy(temp_tipo_dato[variables_a_agregar],(yyvsp[(5) - (5)].str_val));
-	variables_a_agregar++;
-}
-    break;
-
-  case 56:
-
-/* Line 1455 of yacc.c  */
-#line 750 "syntax.y"
-    {
-	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
-	if(DEBUG) {
-		puts("PR_INT\n");
-		puts("-------------------\n");	
-	}
-}
-    break;
-
-  case 57:
-
-/* Line 1455 of yacc.c  */
-#line 759 "syntax.y"
-    {
-	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
-	if(DEBUG) { 
-		puts("PR_FLOAT\n");
-		puts("-------------------\n");
-	}
-}
-    break;
-
-  case 58:
-
-/* Line 1455 of yacc.c  */
-#line 768 "syntax.y"
-    {
-	(yyval.str_val)=(yyvsp[(1) - (1)].str_val);
-	if(DEBUG) {
-		puts("PR_STRING\n");
-		puts("-------------------\n");
-	}
-}
-    break;
-
-  case 59:
-
-/* Line 1455 of yacc.c  */
-#line 777 "syntax.y"
+#line 1068 "syntax.y"
     {
 	// strcpy(nodo_comparador->info->a, ">");
 	if(DEBUG) {
@@ -2461,10 +2659,10 @@ yyreduce:
 }
     break;
 
-  case 60:
+  case 54:
 
 /* Line 1455 of yacc.c  */
-#line 786 "syntax.y"
+#line 1077 "syntax.y"
     {
 	// strcpy(nodo_comparador->info->a, "<");
 	if(DEBUG) {
@@ -2474,10 +2672,10 @@ yyreduce:
 }
     break;
 
-  case 61:
+  case 55:
 
 /* Line 1455 of yacc.c  */
-#line 795 "syntax.y"
+#line 1086 "syntax.y"
     {
 	// strcpy(nodo_comparador->info->a, "<=");
 
@@ -2489,10 +2687,10 @@ yyreduce:
 }
     break;
 
-  case 62:
+  case 56:
 
 /* Line 1455 of yacc.c  */
-#line 806 "syntax.y"
+#line 1097 "syntax.y"
     {
 	// strcpy(nodo_comparador->info->a, ">=");
 	if(DEBUG) {
@@ -2502,10 +2700,10 @@ yyreduce:
 }
     break;
 
-  case 63:
+  case 57:
 
 /* Line 1455 of yacc.c  */
-#line 815 "syntax.y"
+#line 1106 "syntax.y"
     {
 	// strcpy(nodo_comparador->info->a, "==");
 	if(DEBUG) {
@@ -2515,10 +2713,10 @@ yyreduce:
 }
     break;
 
-  case 64:
+  case 58:
 
 /* Line 1455 of yacc.c  */
-#line 824 "syntax.y"
+#line 1115 "syntax.y"
     {
 	// strcpy(nodo_comparador->info->a, "!=");
 	if(DEBUG) {
@@ -2531,7 +2729,7 @@ yyreduce:
 
 
 /* Line 1455 of yacc.c  */
-#line 2535 "y.tab.c"
+#line 2733 "y.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2743,22 +2941,15 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 832 "syntax.y"
+#line 1123 "syntax.y"
 
 
 
-t_simbolo tabla_simbolos[2000];
-int cantidad_simbolos = 0;	
-void imprimir_tabla_simbolos();
-void vaciar_tabla_simbolos();
-char * tipo_simbolo_to_string(int tipo);
-
-
+extern t_simbolo tabla_simbolos[2000];
 
 //funcion para realizar todo lo que haga falta previo a terminar
 void finally(FILE *yyin){
 	vaciar_tabla_simbolos();
-	fclose(a);
 	// vaciar_arbol(&arbol_ejecucion);
 	fclose(yyin);
 }
@@ -2767,23 +2958,52 @@ void finally(FILE *yyin){
 
 int main(int argc, char **argv ) {
 	// puts("Corriendo el compilador...");
+	// crear_inicio_assembler();
+
 	++argv, --argc; 
-	puts("a");
+
 	if ( argc > 0 ) {
 	    yyin = fopen( argv[0], "r" );
     }	else {
 	    yyin = stdin;
 
     }
-	puts("b");
 
-    agregar_variable_a_TS("IGUALES","INT", 0);
+
+
+    crear_pila_de_colas(&pila_de_colas);
+    // crear_pila(&cola_sentencias);
+    crear_cola(&cola_sentencias);
+    crear_pila(&pila_bloques);
+    crear_pila(&pila_comparaciones);
+    crear_pila(&pila_condiciones);
+    crear_pila(&pila_factores);
+    crear_pila(&pila_terminos);
+    crear_pila(&pila_expresiones);
+    crear_arbol(&arbol_ejecucion);
 
 	yyparse();
-	puts("c");
-
 	imprimir_tabla_simbolos();
+	arbol_ejecucion->p_nodo = obtener_raiz(nodo_sentencia);
 
+	refactorizar_nodo(&arbol_ejecucion->p_nodo);
+	// recorrer_en_orden(arbol_ejecucion->p_nodo,&reemplazar_etiqueta_por_valor_TS);
+
+	// crear_codigo_assembler(arbol_ejecucion->p_nodo);
+	// arbol_ejecucion->p_nodo = obtener_raiz(nodo_iguales);
+
+	// recorrer_en_orden(arbol_ejecucion->p_nodo,&visitar);
+	// puts("hola");
+	print_t(arbol_ejecucion->p_nodo);
+	
+	// imprimir_arbol(arbol_ejecucion->p_nodo);
+
+	// printf("la pila esta vacia? %d\n", pila_vacia(&cola_sentencias) );
+	// if(!pila_vacia)
+	// {
+	// 	t_nodo_arbol
+	// }
+	
 	finally(yyin); 
 	puts("\nFinalizando compilacion...");
 	return EXIT_SUCCESS;
@@ -2794,350 +3014,5 @@ int yyerror(void)
 	printf("Syntax Error\n");
 	system ("Pause");
 	exit (1);
-}
-
-/* borra todo el contenido de la tabla de simbolos, generalmente para ser borrado */
-void vaciar_tabla_simbolos(){
-	int i;
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		free(tabla_simbolos[i].nombre);
-		if(tabla_simbolos[i].valor_string != NULL)
-			free(tabla_simbolos[i].valor_string);
-		if(tabla_simbolos[i].alias != NULL)
-			free(tabla_simbolos[i].alias);
-	}
-	cantidad_simbolos = 0;
-}
-
-/* le envias una de las constantes definidas en define.h y te devuelve un equivalente en string
-seria como hacerle un toString al tipo de dato entero */
-char * tipo_simbolo_to_string(int tipo){
-	// printf("\n\n\n%d\n\n\n", tipo);
-	switch(tipo) {
-		case TIPO_STRING:
-			return "STRING";
-		case TIPO_FLOAT:
-			return "FLOAT";
-		case TIPO_INT:
-			return "INT";
-		case TIPO_PR:
-			return "PR";
-		default:
-			return "DESCONOCIDO";
-	}
-}
-
-/* imprime la tabla de simbolos a un archivo txt*/
-void imprimir_tabla_simbolos() {
-	FILE *f = fopen(PATH_TABLA_SIMBOLOS, "w");
-	if (f == NULL)
-	{
-	    puts(ERROR_ABRIR_TABLA_SIMBOLOS);
-	    exit(1);
-	}
-	int i;
-	fprintf(f, "NOMBRE \t\t\t\t TIPO \t\t\t\t CONST\t\t\t\t LINEA\n\n");
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		if(tabla_simbolos[i].tipo == TIPO_STRING)
-		{
-			fprintf(f, "%s\t\t\t\t%s\t\t\t\t%d\t\t\t\t%d \n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo),tabla_simbolos[i].esConstante,tabla_simbolos[i].lineNumber);
-			if(tabla_simbolos[i].nombre[0] == '_')
-			{
-				fprintf(a, "\n");
-				fprintf(a, tabla_simbolos[i].nombre);			
-				fprintf(a, " db ?");
-			}
-		}
-	
-		if(tabla_simbolos[i].tipo == TIPO_INT)
-		{
-			fprintf(f, "%s\t\t\t\t%s\t\t\t\t%d\t\t\t\t%d\n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo),tabla_simbolos[i].esConstante,tabla_simbolos[i].lineNumber);
-			fprintf(a, "\n");
-			if(tabla_simbolos[i].nombre[1] == 'c' && tabla_simbolos[i].nombre[2] == 't' && tabla_simbolos[i].nombre[3] == 'e')
-			{
-				char *aux = newStr(tabla_simbolos[i].nombre);
-				fprintf(a, "_");
-				fprintf(a, aux);		
-				fprintf(a, " dd ");
-				char subbuff[5];
-				memcpy( subbuff, &aux[4], 1 );
-				subbuff[1] = '\0';
-				fprintf(a, subbuff);
-				fprintf(a, ".000000");
-			} else
-			{
-				fprintf(a, "\n");
-				fprintf(a, tabla_simbolos[i].nombre);			
-				fprintf(a, " dd 0");
-			}
-		}
-		
-		if(tabla_simbolos[i].tipo == TIPO_FLOAT)
-		{
-			fprintf(f, "%s\t\t\t\t%s\t\t\t\t%d\t\t\t\t%d\n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo),tabla_simbolos[i].esConstante,tabla_simbolos[i].lineNumber);
-			fprintf(a, "\n");
-			if(tabla_simbolos[i].nombre[1] == 'c' && tabla_simbolos[i].nombre[2] == 't' && tabla_simbolos[i].nombre[3] == 'e')
-			{
-				char *aux = newStr(tabla_simbolos[i].nombre);
-				fprintf(a, "_");
-				fprintf(a, aux);		
-				fprintf(a, " dd ");
-				char subbuff[5];
-				memcpy( subbuff, &aux[4], 6 );
-				subbuff[6] = '\0';
-				fprintf(a, subbuff);
-			} else
-			{
-				fprintf(a, "\n");
-				fprintf(a, tabla_simbolos[i].nombre);			
-				fprintf(a, " dd ?");
-			} 
-		}
-		
-		// if(tabla_simbolos[i].tipo == TIPO_PR)
-		// 	fprintf(f, "%s\t\t\t\t%s\t\t\t\t\n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo));
-				
-
-	}
-	fclose(f);
-}
-
-/** Esta funcion te permite agregar un simbolo a la tabla de simbolos.
-	La idea es que se le envie el nombre del simbolo (Si es un id, el nombre
-	de la variable con el  prefijo "_", el tipo de dato es un int definido
-	 en las macro y el valor, en caso de que sea una constante)*/
-void agregar_simbolo(char * nombre, int tipo, char * valor,char * alias, int lineNumber,int esConstante) {
-int n;
-	tabla_simbolos[cantidad_simbolos].nombre = malloc(sizeof(char) * strlen(nombre));
-	strcpy(tabla_simbolos[cantidad_simbolos].nombre,nombre);
-
-
-	if(alias != NULL) {
-		tabla_simbolos[cantidad_simbolos].alias = malloc(sizeof(char) * strlen(alias));
-		strcpy(tabla_simbolos[cantidad_simbolos].alias,alias);	
-	}
-	tabla_simbolos[cantidad_simbolos].tipo = tipo;
-	tabla_simbolos[cantidad_simbolos].esConstante = esConstante;
-	tabla_simbolos[cantidad_simbolos].lineNumber = lineNumber;
-	switch(tipo) {
-		case TIPO_FLOAT:
-			valor="0";
-			tabla_simbolos[cantidad_simbolos].valor_float = atof(valor);
-		break;
-		case TIPO_STRING:
-			if(valor != NULL) {
-				tabla_simbolos[cantidad_simbolos].valor_string = malloc(sizeof(char) * strlen(valor));
-				strcpy(tabla_simbolos[cantidad_simbolos].valor_string,valor);	
-			} else {
-				tabla_simbolos[cantidad_simbolos].valor_string = NULL;
-			}
-		break;
-		case TIPO_INT:
-			valor="0";
-			tabla_simbolos[cantidad_simbolos].valor_int = atoi(valor);
-		break;
-		case TIPO_PR:
-		break;
-		default:
-		puts("Tipo dato erroneo"); exit(1);
-	}
-	cantidad_simbolos++;
-
-
-}
-
-char * substring(char * str , int start, int end)
-{
-	char * ret = (char*) malloc(sizeof(char) * (end - start + 1));
-	memcpy( ret, str + start, end - start +1);
-	*(ret + (end - start+1)) = '\0';
-	return ret;
-}
-
-char * get_nombre_sin_prefijo(t_simbolo * p_simbolo)
-{
-	// printf("Prefijo int : %d\n",);
-	if(!p_simbolo->esConstante)
-		return p_simbolo->nombre + strlen(PREFIJO_ID);
-
-	if(p_simbolo->tipo == TIPO_INT)
-		return p_simbolo->nombre + strlen(PREFIJO_INT);
-
-	if(p_simbolo->tipo == TIPO_STRING)
-		return p_simbolo->nombre + strlen(PREFIJO_STRING);
-	
-	if(p_simbolo->tipo == TIPO_FLOAT)
-		return p_simbolo->nombre + strlen(PREFIJO_FLOAT);
-}
-
-/* Busca una variable en la TS sin tener en cuenta sus prefijos y devuelve
-el indice. si no lo encuentra, devuelve -1;*/
-int buscar_en_TS_sin_prefijo(char * nombre, char * mjs_error, int lineNumber) {
-	char * temp;
-	int i;
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		temp = get_nombre_sin_prefijo(&tabla_simbolos[i]	);
-		// strcpy(temp,tabla_simbolos[i].nombre + 1);
-		if(strcmp(temp,nombre) == 0) 
-			return i;
-	}
-	if(mjs_error != NULL) 
-		sprintf(mjs_error,VARIABLE_INEXISTENTE,nombre, lineNumber);
-	return -1;
-}
-
-/* devuelve el indice del simbolo en la tabla. si no lo encuentra
-devuelve -1
-*/
-int buscar_en_TS(char * nombre, char * mjs_error, int lineNumber) {
-	int i;
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		if(strcmp(tabla_simbolos[i].nombre,nombre) == 0) 
-			return i;
-	}
-	if(mjs_error != NULL) 
-		sprintf(mjs_error,VARIABLE_INEXISTENTE,nombre, lineNumber);
-	return -1;
-}
-
-
-/* Agrega una variable a la TS*/
-void agregar_variable_a_TS(char * nombre, char * tipo_str, int lineNumber) {
-	// printf("agrego %s en linea %d\n",nombre,linecount );
-	strcpy(aux2,nombre);
-	poner_prefijo(aux2,prefijo_id);
-	int index;
-	//si ya existe en TS, tiro error y cierro programa
-	if((index = buscar_en_TS(aux2, NULL,0)) >= 0) {
-		printf(VARIABLE_REPETIDA,nombre,tabla_simbolos[index].lineNumber);
-		exit(1);
-	}
-
-	int tipo = strcmp(tipo_str, "FLOAT") == 0 ? TIPO_FLOAT : strcmp(tipo_str, "INT") == 0 ? TIPO_INT : TIPO_STRING;
-	agregar_simbolo(aux2,tipo,NULL,NULL,lineNumber,0);
-}
-
-/*Agrega una constante a la TS*/
-void agregar_cte_a_TS(int tipo, char * valor_str, int valor_int,float valor_float, int lineNumber) {
-
-
-	if(tipo == TIPO_STRING) {
-		strcpy(aux2,prefijo_string);
-		strcat(aux2, valor_str);
-		if(buscar_en_TS_sin_prefijo(valor_str,NULL,0) != -1)
-		return;
-
-		cantidad_cte_string++;
-		agregar_simbolo(aux2,tipo,NULL,NULL,lineNumber,1);
-
-
-	}else if(tipo == TIPO_INT) {
-		strcpy(aux2,prefijo_int);
-		sprintf(aux,"%d",valor_int);
-		strcat(aux2,aux);
-		if(buscar_en_TS_sin_prefijo(aux,NULL,0) != -1)
-		return;
-
-		agregar_simbolo(aux2,tipo,aux,NULL,lineNumber,1);
-		
-	}else if(tipo == TIPO_FLOAT) {
-		strcpy(aux2,prefijo_float);
-		snprintf(aux,30,"%.4f",valor_float);
-		strcat(aux2,aux);
-		if(buscar_en_TS_sin_prefijo(aux,NULL,0) != -1)
-		return;
-		agregar_simbolo(aux2,tipo,aux,NULL,lineNumber,1);
-		
-	}
-}
-
-/*Busca un simbolo en la TS por su nombre, y te devuelve su tipo */
-int traer_tipo(char * nombre) {
-	int index = buscar_en_TS_sin_prefijo(nombre, NULL,0);
-	return tabla_simbolos[index].tipo;
-}
-
-/* 
-Busca en la tabla de simbolos por nombre. Si los encuentra, devuelve 1 si son iguales,
-o 0 si son distintos. Se le puede enviar un buffer de forma opcional para devolver
-un mensaje de error
-*/
-int tipos_iguales(char * nombre1, char * nombre2, char * msj_error,int lineNumber) {
-
-	int index1 = buscar_en_TS_sin_prefijo(nombre1,msj_error,lineNumber);
-	int index2 = buscar_en_TS_sin_prefijo(nombre2,msj_error,lineNumber);
-
-// printf("%s %s %d %d\n",nombre1,nombre2,index1,index2 );
-	if(index1 == -1 || index2 == -1) {
-		return 0;
-	}
-
-	int return_value = tabla_simbolos[index1].tipo == tabla_simbolos[index2].tipo;
-
-
-	/* Si me pedian un mensaje de error, lo guardo en la variable*/
-	if(!return_value && msj_error != NULL) {
-		char tipo1[10];
-		tabla_simbolos[index1].tipo == TIPO_STRING ? strcpy(tipo1,"STRING") : tabla_simbolos[index1].tipo == TIPO_FLOAT ? strcpy(tipo1,"FLOAT") : strcpy(tipo1,"INT");		
-		char tipo2[10]; 
-		tabla_simbolos[index2].tipo == TIPO_STRING ? strcpy(tipo2,"STRING") : tabla_simbolos[index2].tipo == TIPO_FLOAT ? strcpy(tipo2,"FLOAT") : strcpy(tipo2,"INT");		
-
-		sprintf(msj_error,VARIABLE_ERROR_TIPOS,tipo1,tipo2, lineNumber);
-	}
-	// return 1;
-	return tabla_simbolos[index1].tipo == tabla_simbolos[index2].tipo; 
-}
-
-/* Esta funcion le pone un prefijo a una string base*/
-void poner_prefijo(char * str, char * prefijo) {
-	char pref[32];
-
-	strcpy(pref, prefijo);
-	strcat(pref,str);
-	strcpy(str,pref);
-}
-
-
-void reemplazar(char * cad, char old,char new, int size) 
-{
-	int i;
-	for(i = 0; i < size; i++)
-	{
-		if(*(cad + i) == old)
-			*(cad + i) = new;
-	}
-}
-
-
-void copiar_sin_finalizador(char * dest,char * orig) 
-{
-	
-	while(*orig && *dest)
-	{
-		*dest = *orig;
-		orig++;
-		dest++;		
-	}
-}
-char *newStr (char *charBuffer) {
-  int length = strlen(charBuffer);
-  char *str;
-  if (length <= 1) {
-    str = (char *) malloc(1);
-    str[0] = '\0';
-  } else {
-    str = (char *) malloc(length);
-    strcpy(str, &charBuffer[1]);
-  }
-  return str;
-}
-
-int traer_tipo_con_prefijo(char * nombre) {
-	int index = buscar_en_TS(nombre, NULL,0);
-	return tabla_simbolos[index].tipo;
 }
 

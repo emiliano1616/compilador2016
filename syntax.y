@@ -8,45 +8,53 @@
 #include "arbol.h"
 #include "pila.h"
 #include "cola.h"
+#include "ts.h"
+#include "funciones.h"
 
 #define DEBUG 1
 extern YYSTYPE yylval;
-char prefijo_id[10] = PREFIJO_ID;
-char prefijo_int[10] = PREFIJO_INT;
-char prefijo_float[10] = PREFIJO_FLOAT;
-char prefijo_string[10] = PREFIJO_STRING;
 char temp_variables[MAX_VARIABLES][30];
-char temp_tipo_dato[MAX_VARIABLES][10];
+// char temp_tipo_dato[MAX_VARIABLES][10];
+char temp_tipo_dato[10];
 int variables_a_agregar= 0;
-char aux[30];
-char aux2[30];
-int cantidad_cte_string = 0;
-int buscar_en_TS_sin_prefijo(char * nombre, char * mjs_error , int lineNumber );
-int buscar_en_TS(char * nombre, char * mjs_error, int lineNumber);
-void agregar_simbolo(char * nombre, int tipo, char * valor,char * alias,int lineNumber,int esConstante);
-void agregar_variable_a_TS(char * nombre, char * tipo,int lineNumber);
-void agregar_cte_a_TS(int tipo, char * valor_str, int valor_int,float valor_float,int lineNumber);
-void agregar_cte_a_TS_sin_prefijo(int tipo, char * valor_str, int valor_int,float valor_float,int lineNumber);
-void error_lexico(char * mensaje);
-int tipos_iguales(char * nombre1, char * nombre2, char * mjs_error, int lineNumber);
-int traer_tipo(char * nombre);
-void poner_prefijo(char * str, char * prefijo);
-void copiar_sin_finalizador(char * dest,char * orig); 
-void reemplazar(char * cad, char old,char new, int size) ;
-char *newStr (char *charBuffer);
-char * substring(char * str , int start, int end);
-char * get_nombre_sin_prefijo(t_simbolo *);
-int traer_tipo_con_prefijo(char * nombre);
+
 
 extern int linecount;
-static t_info_sentencias * p_info_iguales;
-static FILE *a;
-static char asig_final[80];
-static char asig_iguales[80];
-static char sent_final[80];
-static char string_saltos[1];
-static char string_cond[5];
 
+t_pila_de_colas * pila_de_colas;
+t_pila * pila_bloques;
+t_cola * cola_sentencias;
+t_pila * pila_comparaciones;
+t_pila * pila_condiciones;
+t_pila * pila_expresiones;
+t_pila * pila_factores;
+t_pila * pila_terminos;
+t_pila_asm * pila_whiles;
+
+t_arbol * arbol_ejecucion;
+t_nodo_arbol * nodo_between;
+t_nodo_arbol * nodo_average;
+t_nodo_arbol * nodo_factor;
+t_nodo_arbol * nodo_termino;
+t_nodo_arbol * nodo_expresion;
+t_nodo_arbol * nodo_asignacion;
+t_nodo_arbol * nodo_condicion;
+t_nodo_arbol * nodo_comparacion;
+t_nodo_arbol * nodo_pgm;
+t_nodo_arbol * nodo_programa;
+t_nodo_arbol * nodo_sentencia;
+t_nodo_arbol * nodo_sentencias;
+t_nodo_arbol * nodo_comparador;
+t_nodo_arbol * nodo_condicional;
+t_nodo_arbol * nodo_iteracion;
+t_nodo_arbol * nodo_io;
+t_nodo_arbol * nodo_entrada;
+t_nodo_arbol * nodo_salida;
+t_nodo_arbol * nodo_declaracion_variable;
+t_nodo_arbol * nodo_sentencias_then;
+t_nodo_arbol * nodo_sentencias_else;
+t_nodo_arbol * nodo_then;
+t_nodo_arbol * nodo_asm_while;
 
 
 int yylex();
@@ -73,15 +81,11 @@ char *str_val;
 %type <str_val> factor
 %type <str_val> comparador
 %type <str_val> sentencia
-%type <str_val> iguales
-%type <str_val> filter
 %type <str_val> salida
 %type <str_val> entrada
 // %type <str_val> factor_str
 
 %token PR_MAIN
-%token PR_IGUALES
-%token PR_FILTER
 %token PR_WRITE
 %token PR_READ
 %token PR_IF
@@ -92,6 +96,10 @@ char *str_val;
 %token PR_WHILE
 %token PR_DO
 %token PR_ENDWHILE
+%token PR_AVERAGE
+%token PR_DECVAR
+%token PR_ENDDEC
+%token PR_BETWEEN
 %token PAR_ABRE
 %token PAR_CIERRA
 %token COR_ABRE
@@ -112,16 +120,17 @@ char *str_val;
 %token OP_IGUAL
 %token PR_AS
 %token PR_DIM
-%token OP_FILTER
 %token <str_val> PR_FLOAT
 %token <str_val> PR_INT
 %token <str_val> PR_STRING
 %token OP_CONCAT
 %token PUNTO_Y_COMA
+%token DOS_PUNTOS
 %%
 
 pgm : programa 
 {
+	nodo_pgm = nodo_programa;
 	puts("COMPILACION EXITOSA\n");
 	puts("-------------------\n");
 };
@@ -152,6 +161,46 @@ sentencia : asignacion PUNTO_Y_COMA
 		puts("sentencia : asignacion PUNTO_Y_COMA\n");
 		puts("-------------------\n");		
 	}
+
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_asignacion,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+
+
+};
+
+sentencia : between PUNTO_Y_COMA
+{
+	if(DEBUG) {
+		puts("sentencia : between PUNTO_Y_COMA\n");
+		puts("-------------------\n");		
+	}
+
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_between,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+
+
+};
+
+sentencia : average PUNTO_Y_COMA
+{
+	if(DEBUG) {
+		puts("sentencia : average PUNTO_Y_COMA\n");
+		puts("-------------------\n");		
+	}
+
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_average,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+
+
 };
 
 
@@ -160,15 +209,32 @@ lista_sentencias : sentencia
 	if(DEBUG){
 		puts("Una sola sentencia\n");
 		puts("-------------------\n");
+		// printf("la pila esta vacia? %d\n",pila_vacia(&cola_sentencias) );
 	}
+		t_info_sentencias * sentencia_apilada = sacar_de_cola(&cola_sentencias);
+		nodo_sentencias = sentencia_apilada->a;
+		// puts("sacando de cola");
+		// recorrer_en_orden(sentencia_apilada->a,&visitar);
 };
 
 lista_sentencias : sentencia lista_sentencias
 {
-	if(DEBUG) {
+	// if(DEBUG) {
 		puts("Varias sentencias\n");
 		puts("-------------------\n");
-	}
+	// }
+	// nodo_sentencias = nodo_sentencia;
+	// nodo_sentencias->nodo_der = nodo_sentencia;
+	t_info_sentencias * sentencia_apilada = sacar_de_cola(&cola_sentencias);
+	nodo_sentencias->nodo_der = sentencia_apilada->a;
+	nodo_sentencias->nodo_der->padre = nodo_sentencias;
+	nodo_sentencias = sentencia_apilada->a;
+		// puts("sacando de cola");
+		// recorrer_en_orden(sentencia_apilada->a,&visitar);
+
+
+
+	// nodo_sentencias = crear_nodo_arbol(crear_info("NUEVA"),nodo_sentencias,sentencia_apilada->a);
 };
 
 sentencia : condicional 
@@ -179,6 +245,16 @@ sentencia : condicional
 		puts("sentencia : condicional \n");
 		puts("-------------------\n");		
 	}
+	
+	//para esta altura todas las sentencias del bloque deberian haber sido desencoladas
+	printf("La cola de sentencias esta vacia? %d\n",cola_vacia(&cola_sentencias));
+	cola_sentencias = sacar_de_pila_de_colas(&pila_de_colas);
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_condicional,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+	// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+
 };
 
 
@@ -188,6 +264,17 @@ sentencia : iteracion
 		puts("sentencia : iteracion\n");
 		puts("-------------------\n");		
 	}
+
+	//para esta altura todas las sentencias del bloque deberian haber sido desencoladas
+	printf("La cola de sentencias esta vacia? %d\n",cola_vacia(&cola_sentencias));
+	cola_sentencias = sacar_de_pila_de_colas(&pila_de_colas);
+
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_iteracion,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+		// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
+	// print_t(nodo_sentencia);
+	// nodo_sentencia = nodo_iteracion;
 };
 
 sentencia : io PUNTO_Y_COMA
@@ -196,103 +283,72 @@ sentencia : io PUNTO_Y_COMA
 		puts("Operacion de entrada salidas\n");
 		puts("-------------------\n");		
 	}
+	nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_io,NULL);
+	insertar_en_cola(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
+		// puts("insertando en cola");
+	// recorrer_en_orden(nodo_sentencia,&visitar);
 };
 
-sentencia : iguales PUNTO_Y_COMA
-{
-	if(DEBUG) {
-		puts("Operacion de iguales\n");
-		puts("-------------------\n");	
-	}
-}
 
-sentencia : filter PUNTO_Y_COMA
+between : PR_BETWEEN  PAR_ABRE TOKEN_ID COMA COR_ABRE expresion PUNTO_Y_COMA expresion COR_CIERRA PAR_CIERRA
 {
 	if(DEBUG) {
-		puts("Operacioon de filters\n");
-		puts("-------------------\n");
-	}
-}
-
-iguales : PR_IGUALES PAR_ABRE expresion COMA COR_ABRE lista_expresiones COR_CIERRA PAR_CIERRA 
-{
-	if(DEBUG) {
-		puts("iguales : PR_IGUALES PAR_ABRE expresion COMA COR_ABRE lista_expresiones COR_CIERRA PAR_CIERRA\n");
-		puts("-------------------\n");
-	}
-	$$ = "IGUALES";
-}
-
-lista_expresiones : expresion COMA lista_expresiones
-{
-	if(DEBUG) {
-		puts("Lista de expresiones\n");
+		puts("between : PR_BETWEEN  PAR_ABRE TOKEN_ID COMA COR_ABRE expresion PUNTO_Y_COMA expresion COR_CIERRA PAR_CIERRA\n");
 		puts("-------------------\n");		
 	}
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_expresiones);
+
+
+	t_nodo_arbol * p_if_cond1 = crear_nodo_arbol(crear_info("<"),crear_hoja(crear_info($3)),p_info1->a);
+	t_nodo_arbol * p_if_cond2 = crear_nodo_arbol(crear_info(">"),crear_hoja(crear_info($3)),p_info2->a);
+
+	t_nodo_arbol * p_if = crear_nodo_arbol(crear_info("AND"),p_if_cond1,p_if_cond2);
+
+
+
+	t_nodo_arbol * p_if_then = crear_nodo_arbol(crear_info("<V.F>"),crear_hoja(crear_info("1")),crear_hoja(crear_info("0")));
+
+
+
+	nodo_between = crear_nodo_arbol(crear_info("BETWEEN"),p_if,p_if_then);
+
+
+
+}
+
+average : PR_AVERAGE PAR_ABRE COR_ABRE lista_expresiones COR_CIERRA PAR_CIERRA 
+{
+	if(DEBUG) {
+		puts("average : PR_AVERAGE PAR_ABRE COR_ABRE lista_expresiones COR_CIERRA PAR_CIERRA \n");
+		puts("-------------------\n");
+	}
+
+	while(!pila_vacia(&pila_expresiones) )
+	{
+		t_info_sentencias * p_info = sacar_de_pila(&pila_expresiones);
+		// printf("asdasd\n");
+	}
+
 }
 
 lista_expresiones : expresion
 {
 	if(DEBUG) {
-		puts("Última expresion\n");
-		puts("-------------------\n");		
-	}
-}
-
-filter : PR_FILTER PAR_ABRE condicion_filter COMA COR_ABRE lista_variables COR_CIERRA PAR_CIERRA
-{
-	if(DEBUG) {
-		puts("filter : PR_FILTER PAR_ABRE condicion COMA COR_ABRE lista_variables COR_CIERRA PAR_CIERRA\n");
-		puts("-------------------\n");
-	}
-	$$ = "FILTER";
-}
-
-condicion_filter : comparacion_filter
-{
-	puts("condicion_filter : comparacion_filter\n");
-	puts("-------------------\n");
-}
-
-condicion_filter : comparacion_filter OP_LOG_AND comparacion_filter
-{
-	puts("condicion_filter : comparacion_filter and comparacion_filter\n");
-	puts("-------------------\n");
-}
-
-condicion_filter : comparacion_filter OP_LOG_OR comparacion_filter
-{
-	puts("condicion_filter : comparacion_filter or comparacion_filter\n");
-	puts("-------------------\n");
-}
-
-comparacion_filter : OP_FILTER comparador expresion
-{
-	puts("comparacion_filter : OP_FILTER comparador expresion\n");
-	puts("-------------------\n");
-}
-
-// comparacion_filter : PR_NOT OP_FILTER comparador expresion
-// {
-// 	puts("comparacion_filter : PR_NOT OP_FILTER comparador expresion\n");
-// 	puts("-------------------\n");
-// }
-
-lista_variables : TOKEN_ID COMA lista_variables
-{
-	if(DEBUG) {
-		puts("Lista de variables\n");
-		puts("-------------------\n");		
-	}
-}
-
-lista_variables : TOKEN_ID
-{
-	if(DEBUG) {
-		puts("Ultima variable\n");
+		puts("lista_expresiones : expresion \n");
 		puts("-------------------\n");
 	}
 }
+
+lista_expresiones : expresion COMA lista_expresiones
+{
+	if(DEBUG) {
+		puts("lista_expresiones : expresion COMA lista_expresiones \n");
+		puts("-------------------\n");
+	}
+}
+
 
 io : entrada
 {
@@ -300,6 +356,9 @@ io : entrada
 		puts("io : entrada\n");
 		puts("-------------------\n");
 	}
+
+	nodo_io = nodo_entrada;
+
 }
 
 io : salida
@@ -308,6 +367,7 @@ io : salida
 		puts("io : salida\n");
 		puts("-------------------\n");		
 	}
+	nodo_io = nodo_salida;
 }
 
 entrada : PR_READ TOKEN_ID
@@ -322,6 +382,7 @@ entrada : PR_READ TOKEN_ID
 		puts(mjs);
 		exit(1);
 	}
+	nodo_entrada = crear_nodo_arbol(crear_info("READ"),crear_hoja(crear_info($2)),crear_hoja(crear_info("READ")));
 }
 
 salida : PR_WRITE TOKEN_ID
@@ -337,6 +398,7 @@ salida : PR_WRITE TOKEN_ID
 		puts(mjs);
 		exit(1);
 	}
+	nodo_salida = crear_nodo_arbol(crear_info("WRITE"),crear_hoja(crear_info($2)),crear_hoja(crear_info("WRITE")));
 
 }
 
@@ -346,6 +408,7 @@ salida : PR_WRITE CONST_STR
 		puts("salida : PR_WRITE cte\n");
 		puts("-------------------\n");	
 	}
+	nodo_salida = crear_nodo_arbol(crear_info("WRITE"),crear_hoja(crear_info($2)),crear_hoja(crear_info("WRITE")));
 
 }
 
@@ -355,6 +418,11 @@ condicional : PR_IF PAR_ABRE condicion PAR_CIERRA then PR_ENDIF
 		puts("Condicional sin ELSE\n");
 		puts("-------------------\n");
 	}
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_condiciones);
+	//le pongo null porque ahi iria el ELSE y no hay
+	nodo_then = crear_nodo_arbol(crear_info("THEN"),nodo_sentencias_then,NULL);
+	nodo_condicional = crear_nodo_arbol(crear_info("IF"),p_info->a,nodo_then);
 }
 
 condicional : PR_IF PAR_ABRE condicion PAR_CIERRA then else PR_ENDIF
@@ -365,6 +433,11 @@ condicional : PR_IF PAR_ABRE condicion PAR_CIERRA then else PR_ENDIF
 		puts("Condicional con ELSE\n");
 		puts("-------------------\n");	
 	}
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_condiciones);
+	nodo_then = crear_nodo_arbol(crear_info("<V.F>"),nodo_sentencias_then,nodo_sentencias_else);
+	nodo_condicional = crear_nodo_arbol(crear_info("IF"),p_info->a,nodo_then);
+
 }
 
 then : PR_THEN lista_sentencias
@@ -373,6 +446,7 @@ then : PR_THEN lista_sentencias
 		puts("PR_THEN lista_sentencias\n");
 		puts("-------------------\n");	
 	}
+	nodo_sentencias_then = obtener_raiz(nodo_sentencias);
 
 }
 
@@ -382,38 +456,69 @@ else : PR_ELSE lista_sentencias
 		puts("PR_ELSE lista_sentencias\n");
 		puts("-------------------\n");	
 	}
+	nodo_sentencias_else = obtener_raiz(nodo_sentencias);
 }
 
 condicion : comparacion
 {
-	if(DEBUG) {
+	// if(DEBUG) {
 		puts("condicion : comparacion\n");
 		puts("-------------------\n");
-	}
+	// }
+
+	insertar_en_pila_de_colas(&pila_de_colas,cola_sentencias);
+	crear_cola(&cola_sentencias);
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_comparaciones);
+	nodo_condicion = p_info->a;
+	insertar_en_pila(&pila_condiciones,crear_info_sentencias(nodo_condicion));
+
 }
 
 condicion : comparacion OP_LOG_AND comparacion
 {
-	if(DEBUG) {
+	// if(DEBUG) {
 		puts("condicion : comparacion and comparacion\n");
 		puts("-------------------\n");		
-	}
+	// }
+
+	insertar_en_pila_de_colas(&pila_de_colas,cola_sentencias);
+	crear_cola(&cola_sentencias);
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_comparaciones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_comparaciones);
+
+	nodo_condicion = crear_nodo_arbol(crear_info("AND"),p_info1->a,p_info2->a);
+	insertar_en_pila(&pila_condiciones,crear_info_sentencias(nodo_condicion));
+
+
 }
 
 condicion : comparacion OP_LOG_OR comparacion
 {
-	if(DEBUG) {
+	// if(DEBUG) {
 		puts("condicion : comparacion or comparacion\n");
 		puts("-------------------\n");		
-	}
+	// }
+
+	insertar_en_pila_de_colas(&pila_de_colas,cola_sentencias);
+	crear_cola(&cola_sentencias);
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_comparaciones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_comparaciones);
+
+	nodo_condicion = crear_nodo_arbol(crear_info("OR"),p_info1->a,p_info2->a);
+	insertar_en_pila(&pila_condiciones,crear_info_sentencias(nodo_condicion));
+
 }
 
 comparacion : expresion comparador expresion
 {
-	if(DEBUG) {
+	// if(DEBUG) {
+	// puts($2);
 		puts("comparacion : expresion comparador expresion\n");
 		puts("-------------------\n");
-	}
+	// }
 	char mjs_error[60];
 	/* comparo que para operar entre terminos, ambos tengan el mismo tipo de datos*/ 
 	if(!tipos_iguales($1,$3,mjs_error,linecount)) 
@@ -421,6 +526,14 @@ comparacion : expresion comparador expresion
 		puts(mjs_error);
 		exit(1);
 	}
+
+	t_info_sentencias * p_info1 = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_info2 = sacar_de_pila(&pila_expresiones);
+	nodo_comparacion = crear_nodo_arbol(crear_info($2),p_info1->a,p_info2->a);
+
+	// puts("a ver esto ahora");
+	// nodo_comparacion = crear_nodo_arbol(crear_info($2),nodo_expresion,nodo_termino);
+	insertar_en_pila(&pila_comparaciones,crear_info_sentencias(nodo_comparacion));
 }
 
 comparacion : PR_NOT expresion
@@ -429,6 +542,12 @@ comparacion : PR_NOT expresion
 		puts("comparacion : PR_NOT expresion comparador expresion\n");
 		puts("-------------------\n");
 	}
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_expresiones);
+
+	nodo_comparacion = crear_nodo_arbol(crear_info("NOT"),p_info->a,NULL);
+	insertar_en_pila(&pila_comparaciones,crear_info_sentencias(nodo_comparacion));
+
 }
 
 iteracion : PR_WHILE PAR_ABRE condicion PAR_CIERRA PR_DO lista_sentencias PR_ENDWHILE
@@ -437,6 +556,12 @@ iteracion : PR_WHILE PAR_ABRE condicion PAR_CIERRA PR_DO lista_sentencias PR_END
 		puts("iteracion : PR_WHILE PAR_ABRE condicion PAR_CIERRA PR_DO lista_sentencias PR_ENDWHILE\n");
 		puts("-------------------\n");
 	}
+
+	t_info_sentencias * p_info = sacar_de_pila(&pila_condiciones);
+	t_nodo_arbol * sentencias_del_do = obtener_raiz(nodo_sentencias);
+	// nodo_do = crear_nodo_arbol(crear_info("DO"),sentencias_del_do,NULL);
+	nodo_iteracion = crear_nodo_arbol(crear_info("WHILE"),p_info->a,sentencias_del_do);
+	sentencias_del_do->padre = nodo_iteracion;
 
 }
 
@@ -448,13 +573,18 @@ asignacion : TOKEN_ID OP_IGUAL expresion
 		puts("-------------------\n");
 	}
 
+	// printf("asignacion %s %s\n",$1,$3 );
 	/* comparo que para operar entre terminos, ambos tengan el mismo tipo de datos*/ 
-	// puts("asignacion comprobacion tipos iguales");
+	puts("asignacion comprobacion tipos iguales");
 	char mjs_error[60];
 	if(!tipos_iguales($1,$3,mjs_error, linecount)) {
 		puts(mjs_error);
 		exit(1);
 	}
+	t_info_sentencias * p_info = sacar_de_pila(&pila_expresiones);
+	/* guardo la asignacion en el arbol de ejecucion */
+	nodo_asignacion = crear_nodo_arbol(crear_info(":="),crear_hoja(crear_info($1)),p_info->a);
+
 }
 
 expresion :factor OP_CONCAT factor 
@@ -495,6 +625,17 @@ expresion :factor OP_CONCAT factor
 		exit(1);
 	}
 
+
+	/* guardo la expresion en el arbol de ejecucion */
+
+	t_info_sentencias * p_nodo_factor1 = sacar_de_pila(&pila_factores);
+
+	t_info_sentencias * p_nodo_factor2 = sacar_de_pila(&pila_factores);
+
+	nodo_expresion = crear_nodo_arbol(crear_info("++"),p_nodo_factor1->a,p_nodo_factor2->a);
+
+	insertar_en_pila(&pila_expresiones,crear_info_sentencias(nodo_expresion));
+
 }
 
 expresion : termino
@@ -506,6 +647,12 @@ expresion : termino
 	}
 
 	$$=$1;
+	
+	/* guardo la expresion en el arbol de ejecucion */
+	t_info_sentencias * p_nodo_termino = sacar_de_pila(&pila_terminos);
+	nodo_expresion = p_nodo_termino->a;
+	insertar_en_pila(&pila_expresiones,p_nodo_termino);
+
 }
 
 expresion : expresion OP_SUMA termino  
@@ -528,6 +675,16 @@ expresion : expresion OP_SUMA termino
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/* guardo la expresion en el arbol de ejecucion */
+	t_info_sentencias * p_nodo_expresion = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_nodo_termino =  sacar_de_pila(&pila_terminos);
+	nodo_expresion = crear_nodo_arbol(crear_info("+"),p_nodo_expresion->a,p_nodo_termino->a);
+	insertar_en_pila(&pila_expresiones,crear_info_sentencias(nodo_expresion));
+
+	free(p_nodo_expresion);
+	free(p_nodo_termino);
+
 } 
 
 expresion : expresion OP_RESTA termino 
@@ -551,6 +708,16 @@ expresion : expresion OP_RESTA termino
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/* guardo la expresion en el arbol de ejecucion */
+	t_info_sentencias * p_nodo_expresion = sacar_de_pila(&pila_expresiones);
+	t_info_sentencias * p_nodo_termino =  sacar_de_pila(&pila_terminos);
+	nodo_expresion = crear_nodo_arbol(crear_info("-"),p_nodo_expresion->a,p_nodo_termino->a);
+	insertar_en_pila(&pila_expresiones,crear_info_sentencias(nodo_expresion));
+
+	free(p_nodo_expresion);
+	free(p_nodo_termino);
+
 }
 
 termino : factor
@@ -560,6 +727,11 @@ termino : factor
 		puts("termino : factor\n");
 		puts("-------------------\n");
 	}
+	/*guardo el termino en el arbol de ejecucion*/
+	t_info_sentencias * p_nodo_factor = sacar_de_pila(&pila_factores);
+	nodo_termino = p_nodo_factor->a;
+	insertar_en_pila(&pila_terminos,p_nodo_factor);
+
 }
 
 termino : termino OP_DIV factor
@@ -583,6 +755,17 @@ termino : termino OP_DIV factor
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/*guardo el termino en el arbol de ejecucion*/
+	t_info_sentencias * p_nodo_factor = sacar_de_pila(&pila_factores);
+	t_info_sentencias * p_nodo_termino = sacar_de_pila(&pila_terminos);
+
+	nodo_termino = crear_nodo_arbol(crear_info("/"),p_nodo_termino->a,p_nodo_factor->a);
+	insertar_en_pila(&pila_terminos,crear_info_sentencias(nodo_termino));
+
+	free(p_nodo_factor);
+	free(p_nodo_termino);
+
 }
 
 termino : termino OP_MUL factor
@@ -607,11 +790,36 @@ termino : termino OP_MUL factor
 		puts(mjs_error);
 		exit(1);
 	}
+
+	/*guardo el termino en el arbol de ejecucion*/
+	t_info_sentencias * p_nodo_factor = sacar_de_pila(&pila_factores);
+	t_info_sentencias * p_nodo_termino = sacar_de_pila(&pila_terminos);
+
+	nodo_termino = crear_nodo_arbol(crear_info("*"),p_nodo_termino->a,p_nodo_factor->a);
+	insertar_en_pila(&pila_terminos,crear_info_sentencias(nodo_termino));
+
+	free(p_nodo_factor);
+	free(p_nodo_termino);
+
+}
+
+factor : between 
+{
+	if(DEBUG) {
+		// puts($1);
+		puts("factor : between \n");
+		puts("-------------------\n");	
+	}
+	insertar_en_pila(&pila_factores,crear_info_sentencias(crear_nodo_arbol(crear_info("BETWEEN"),nodo_between,NULL)));
+	// nodo_factor = crear_nodo_arbol(crear_info("IGUALES"),nodo_iguales,NULL);
+	//nodo_sentencia = crear_nodo_arbol(crear_info(";"),nodo_iguales,NULL);
+	//insertar_en_pila(&cola_sentencias,crear_info_sentencias(nodo_sentencia));
 }
 
 factor : CONST_STR
 {
 	if(DEBUG) {
+		// printf("%s\n",$1);
 		puts("factor : cte\n");
 		puts("-------------------\n");		
 	}
@@ -619,6 +827,11 @@ factor : CONST_STR
 	/* agrego la constante a la tabla de simbolos */
 	agregar_cte_a_TS(TIPO_STRING,$1, 0,0.0,linecount);
 	$$=$1;
+
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info($1));
+	insertar_en_pila(&pila_factores,crear_info_sentencias(nodo_factor));
+	// nodo_factor = crear_hoja(crear_info($1));
 
 	puts($1);
 
@@ -637,6 +850,13 @@ factor : CONST_INT
 	sprintf(temp,"%d",$1);
 	$$ = temp;
 	agregar_cte_a_TS(TIPO_INT,NULL, $1,0.0,linecount);
+
+	// puts("agregando a factooooor intttttttttttttttttttttttttttttt");
+	// puts(temp);
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info(temp));
+	insertar_en_pila(&pila_factores,crear_info_sentencias(nodo_factor));
+	// nodo_factor = crear_hoja(crear_info(temp));
 }
 
 factor : CONST_FLOAT
@@ -652,6 +872,11 @@ factor : CONST_FLOAT
 	sprintf(temp,"%.4f",$1);
 	$$ = temp;
 	agregar_cte_a_TS(TIPO_FLOAT,NULL, 0,$1,linecount);
+
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info(temp));
+	insertar_en_pila(&pila_factores,crear_info_sentencias( nodo_factor));
+	// nodo_factor = crear_hoja(crear_info(temp));
 }
 
 factor : TOKEN_ID
@@ -660,26 +885,12 @@ factor : TOKEN_ID
 		puts("factor : TOKEN_ID\n");
 		puts("-------------------\n");
 	}
+	/*guardo el termino en el arbol de ejecucion*/
+	nodo_factor =  crear_hoja(crear_info($1));
+	insertar_en_pila(&pila_factores,crear_info_sentencias(nodo_factor ));
+	// nodo_factor = crear_hoja(crear_info(temp));
 } 
      
-     
-factor : iguales 
-{
-	if(DEBUG) {
-		puts($1);
-		puts("factor : iguales \n");
-		puts("-------------------\n");	
-	}
-}
-
-factor : filter
-{
-	if(DEBUG) {
-		puts($1);
-		puts("factor : filter\n");
-		puts("-------------------\n");	
-	}	
-}
 
 // factor : expresion
 // {
@@ -687,64 +898,125 @@ factor : filter
 // 	puts("-------------------\n");
 // }
 
-declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA PUNTO_Y_COMA 
-
+declaracion_variables : PR_DECVAR linea_de_declaracion_de_tipos PR_ENDDEC PUNTO_Y_COMA 
 {
-	if(DEBUG) {
-		puts("declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA\n");
+	// if(DEBUG) {
+		puts("declaracion_variables : PR_DECVAR linea_de_declaracion_de_tipos PR_ENDDEC PUNTO_Y_COMA\n");
 		puts("-------------------\n");
-	}
-	int i;
-	/*agrego las variables a la tabla de simbolos, recorro en forma de cola y pila
-	los vectores que cree anteriormente para invertir el orden de los tipos de datos*/
-	for (i = 0; i < variables_a_agregar; ++i)
-	{
-		// printf("agregando %s %s\n", temp_variables[i],temp_tipo_dato[variables_a_agregar -1 - i]);
-		agregar_variable_a_TS(temp_variables[i],temp_tipo_dato[variables_a_agregar - 1- i], linecount);
-	}
-	variables_a_agregar = 0;
+	// }
+
 } 
 
-declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA PUNTO_Y_COMA declaracion_variables 
+linea_de_declaracion_de_tipos : lista_variables DOS_PUNTOS tipo_dato PUNTO_Y_COMA
 {
-	puts("declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA\n");
+	printf("El tipo de dato a agregar es %s \n", $3);
+	puts("linea_de_declaracion_de_tipos : lista_variables DOS_PUNTOS tipo_dato\n");
 	puts("-------------------\n");
+
+
 }
 
-
-declaracion_variables_interna : TOKEN_ID COMA declaracion_variables_interna COMA tipo_dato
+linea_de_declaracion_de_tipos : lista_variables DOS_PUNTOS tipo_dato PUNTO_Y_COMA linea_de_declaracion_de_tipos
 {
-	if(DEBUG) {
-		puts("declaracion_variables_interna : TOKEN_ID COMA declaracion_variables_interna COMA tipo_dato\n");
-		puts("-------------------\n");
-	}
-	/* Agrego de forma temporal los datos leidos, para luego procesarlos */
-	strcpy(temp_variables[variables_a_agregar],$1);
-	strcpy(temp_tipo_dato[variables_a_agregar],$5);
-	variables_a_agregar++;
-} 
+	printf("El tipo de dato a agregar es %s \n", $3);
+	puts("linea_de_declaracion_de_tipos : linea_de_declaracion_de_tipos linea_de_declaracion_de_tipos\n");
+	puts("-------------------\n");
 
-declaracion_variables_interna : TOKEN_ID COR_CIERRA PR_AS COR_ABRE tipo_dato
-{
-	if(DEBUG) {
-		puts("declaracion_variables_interna : TOKEN_ID COR_CIERRA PR_AS COR_ABRE tipo_dato\n");
-		puts("-------------------\n");
-	}
 	int i;
-	/*agrego las variables a la tabla de simbolos, recorro en forma de cola y pila
-	los vectores que cree anteriormente para invertir el orden de los tipos de datos*/
 	for (i = 0; i < variables_a_agregar; ++i)
 	{
-		printf("agregando %s %s\n", temp_variables[i],temp_tipo_dato[variables_a_agregar -1 - i]);
-		agregar_variable_a_TS(temp_variables[i],temp_tipo_dato[variables_a_agregar - 1 - i], linecount);
+		agregar_variable_a_TS(temp_variables[i], $3,linecount);
 	}
 	variables_a_agregar = 0;
-
-	/* Agrego de forma temporal los datos leidos, para luego procesarlos */
-	strcpy(temp_variables[variables_a_agregar],$1);
-	strcpy(temp_tipo_dato[variables_a_agregar],$5);
-	variables_a_agregar++;
 }
+
+
+
+lista_variables : TOKEN_ID
+{
+	printf("la variable es: %s \n",$1);
+	if(DEBUG) {
+		puts("lista_variables : TOKEN_ID \n");
+		puts("-------------------\n");
+	}
+
+	strcpy(temp_variables[variables_a_agregar],$1);
+	variables_a_agregar++;
+
+} 
+
+lista_variables : TOKEN_ID COMA lista_variables
+{
+	printf("la variable es: %s \n",$1);
+	// if(DEBUG) {
+		puts("lista_variables : TOKEN_ID COMA lista_variables \n");
+		puts("-------------------\n");
+	// }
+
+
+	strcpy(temp_variables[variables_a_agregar],$1);
+	variables_a_agregar++;
+
+} 
+
+// declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA PUNTO_Y_COMA 
+
+// {
+// 	if(DEBUG) {
+// 		puts("declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA\n");
+// 		puts("-------------------\n");
+// 	}
+// 	int i;
+// 	/*agrego las variables a la tabla de simbolos, recorro en forma de cola y pila
+// 	los vectores que cree anteriormente para invertir el orden de los tipos de datos*/
+// 	for (i = 0; i < variables_a_agregar; ++i)
+// 	{
+// 		// printf("agregando %s %s\n", temp_variables[i],temp_tipo_dato[variables_a_agregar -1 - i]);
+// 		agregar_variable_a_TS(temp_variables[i],temp_tipo_dato[variables_a_agregar - 1- i], linecount);
+// 	}
+// 	variables_a_agregar = 0;
+// } 
+
+// declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA PUNTO_Y_COMA declaracion_variables 
+// {
+// 	puts("declaracion_variables : PR_DIM COR_ABRE declaracion_variables_interna COR_CIERRA\n");
+// 	puts("-------------------\n");
+// }
+
+
+// declaracion_variables_interna : TOKEN_ID COMA declaracion_variables_interna COMA tipo_dato
+// {
+// 	if(DEBUG) {
+// 		puts("declaracion_variables_interna : TOKEN_ID COMA declaracion_variables_interna COMA tipo_dato\n");
+// 		puts("-------------------\n");
+// 	}
+// 	/* Agrego de forma temporal los datos leidos, para luego procesarlos */
+// 	strcpy(temp_variables[variables_a_agregar],$1);
+// 	strcpy(temp_tipo_dato[variables_a_agregar],$5);
+// 	variables_a_agregar++;
+// } 
+
+// declaracion_variables_interna : TOKEN_ID COR_CIERRA PR_AS COR_ABRE tipo_dato
+// {
+// 	if(DEBUG) {
+// 		puts("declaracion_variables_interna : TOKEN_ID COR_CIERRA PR_AS COR_ABRE tipo_dato\n");
+// 		puts("-------------------\n");
+// 	}
+// 	int i;
+// 	/*agrego las variables a la tabla de simbolos, recorro en forma de cola y pila
+// 	los vectores que cree anteriormente para invertir el orden de los tipos de datos*/
+// 	for (i = 0; i < variables_a_agregar; ++i)
+// 	{
+// 		printf("agregando %s %s\n", temp_variables[i],temp_tipo_dato[variables_a_agregar -1 - i]);
+// 		agregar_variable_a_TS(temp_variables[i],temp_tipo_dato[variables_a_agregar - 1 - i], linecount);
+// 	}
+// 	variables_a_agregar = 0;
+
+// 	/* Agrego de forma temporal los datos leidos, para luego procesarlos */
+// 	strcpy(temp_variables[variables_a_agregar],$1);
+// 	strcpy(temp_tipo_dato[variables_a_agregar],$5);
+// 	variables_a_agregar++;
+// }
 
 tipo_dato : PR_INT 
 {
@@ -753,6 +1025,13 @@ tipo_dato : PR_INT
 		puts("PR_INT\n");
 		puts("-------------------\n");	
 	}
+
+	int i;
+	for (i = 0; i < variables_a_agregar; ++i)
+	{
+		agregar_variable_a_TS(temp_variables[i], $1,linecount);
+	}
+	variables_a_agregar = 0;
 }   
 
 tipo_dato : PR_FLOAT 
@@ -762,6 +1041,12 @@ tipo_dato : PR_FLOAT
 		puts("PR_FLOAT\n");
 		puts("-------------------\n");
 	}
+	int i;
+	for (i = 0; i < variables_a_agregar; ++i)
+	{
+		agregar_variable_a_TS(temp_variables[i], $1,linecount);
+	}
+	variables_a_agregar = 0;
 }            
 
 tipo_dato : PR_STRING 
@@ -771,6 +1056,12 @@ tipo_dato : PR_STRING
 		puts("PR_STRING\n");
 		puts("-------------------\n");
 	}
+	int i;
+	for (i = 0; i < variables_a_agregar; ++i)
+	{
+		agregar_variable_a_TS(temp_variables[i], $1,linecount);
+	}
+	variables_a_agregar = 0;
 } 
 
 comparador : OP_MAYOR
@@ -832,18 +1123,11 @@ comparador : OP_DISTINTO
 %%
 
 
-t_simbolo tabla_simbolos[2000];
-int cantidad_simbolos = 0;	
-void imprimir_tabla_simbolos();
-void vaciar_tabla_simbolos();
-char * tipo_simbolo_to_string(int tipo);
-
-
+extern t_simbolo tabla_simbolos[2000];
 
 //funcion para realizar todo lo que haga falta previo a terminar
 void finally(FILE *yyin){
 	vaciar_tabla_simbolos();
-	fclose(a);
 	// vaciar_arbol(&arbol_ejecucion);
 	fclose(yyin);
 }
@@ -852,23 +1136,52 @@ void finally(FILE *yyin){
 
 int main(int argc, char **argv ) {
 	// puts("Corriendo el compilador...");
+	// crear_inicio_assembler();
+
 	++argv, --argc; 
-	puts("a");
+
 	if ( argc > 0 ) {
 	    yyin = fopen( argv[0], "r" );
     }	else {
 	    yyin = stdin;
 
     }
-	puts("b");
 
-    agregar_variable_a_TS("IGUALES","INT", 0);
+
+
+    crear_pila_de_colas(&pila_de_colas);
+    // crear_pila(&cola_sentencias);
+    crear_cola(&cola_sentencias);
+    crear_pila(&pila_bloques);
+    crear_pila(&pila_comparaciones);
+    crear_pila(&pila_condiciones);
+    crear_pila(&pila_factores);
+    crear_pila(&pila_terminos);
+    crear_pila(&pila_expresiones);
+    crear_arbol(&arbol_ejecucion);
 
 	yyparse();
-	puts("c");
-
 	imprimir_tabla_simbolos();
+	arbol_ejecucion->p_nodo = obtener_raiz(nodo_sentencia);
 
+	refactorizar_nodo(&arbol_ejecucion->p_nodo);
+	// recorrer_en_orden(arbol_ejecucion->p_nodo,&reemplazar_etiqueta_por_valor_TS);
+
+	// crear_codigo_assembler(arbol_ejecucion->p_nodo);
+	// arbol_ejecucion->p_nodo = obtener_raiz(nodo_iguales);
+
+	// recorrer_en_orden(arbol_ejecucion->p_nodo,&visitar);
+	// puts("hola");
+	print_t(arbol_ejecucion->p_nodo);
+	
+	// imprimir_arbol(arbol_ejecucion->p_nodo);
+
+	// printf("la pila esta vacia? %d\n", pila_vacia(&cola_sentencias) );
+	// if(!pila_vacia)
+	// {
+	// 	t_nodo_arbol
+	// }
+	
 	finally(yyin); 
 	puts("\nFinalizando compilacion...");
 	return EXIT_SUCCESS;
@@ -879,349 +1192,4 @@ int yyerror(void)
 	printf("Syntax Error\n");
 	system ("Pause");
 	exit (1);
-}
-
-/* borra todo el contenido de la tabla de simbolos, generalmente para ser borrado */
-void vaciar_tabla_simbolos(){
-	int i;
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		free(tabla_simbolos[i].nombre);
-		if(tabla_simbolos[i].valor_string != NULL)
-			free(tabla_simbolos[i].valor_string);
-		if(tabla_simbolos[i].alias != NULL)
-			free(tabla_simbolos[i].alias);
-	}
-	cantidad_simbolos = 0;
-}
-
-/* le envias una de las constantes definidas en define.h y te devuelve un equivalente en string
-seria como hacerle un toString al tipo de dato entero */
-char * tipo_simbolo_to_string(int tipo){
-	// printf("\n\n\n%d\n\n\n", tipo);
-	switch(tipo) {
-		case TIPO_STRING:
-			return "STRING";
-		case TIPO_FLOAT:
-			return "FLOAT";
-		case TIPO_INT:
-			return "INT";
-		case TIPO_PR:
-			return "PR";
-		default:
-			return "DESCONOCIDO";
-	}
-}
-
-/* imprime la tabla de simbolos a un archivo txt*/
-void imprimir_tabla_simbolos() {
-	FILE *f = fopen(PATH_TABLA_SIMBOLOS, "w");
-	if (f == NULL)
-	{
-	    puts(ERROR_ABRIR_TABLA_SIMBOLOS);
-	    exit(1);
-	}
-	int i;
-	fprintf(f, "NOMBRE \t\t\t\t TIPO \t\t\t\t CONST\t\t\t\t LINEA\n\n");
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		if(tabla_simbolos[i].tipo == TIPO_STRING)
-		{
-			fprintf(f, "%s\t\t\t\t%s\t\t\t\t%d\t\t\t\t%d \n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo),tabla_simbolos[i].esConstante,tabla_simbolos[i].lineNumber);
-			if(tabla_simbolos[i].nombre[0] == '_')
-			{
-				fprintf(a, "\n");
-				fprintf(a, tabla_simbolos[i].nombre);			
-				fprintf(a, " db ?");
-			}
-		}
-	
-		if(tabla_simbolos[i].tipo == TIPO_INT)
-		{
-			fprintf(f, "%s\t\t\t\t%s\t\t\t\t%d\t\t\t\t%d\n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo),tabla_simbolos[i].esConstante,tabla_simbolos[i].lineNumber);
-			fprintf(a, "\n");
-			if(tabla_simbolos[i].nombre[1] == 'c' && tabla_simbolos[i].nombre[2] == 't' && tabla_simbolos[i].nombre[3] == 'e')
-			{
-				char *aux = newStr(tabla_simbolos[i].nombre);
-				fprintf(a, "_");
-				fprintf(a, aux);		
-				fprintf(a, " dd ");
-				char subbuff[5];
-				memcpy( subbuff, &aux[4], 1 );
-				subbuff[1] = '\0';
-				fprintf(a, subbuff);
-				fprintf(a, ".000000");
-			} else
-			{
-				fprintf(a, "\n");
-				fprintf(a, tabla_simbolos[i].nombre);			
-				fprintf(a, " dd 0");
-			}
-		}
-		
-		if(tabla_simbolos[i].tipo == TIPO_FLOAT)
-		{
-			fprintf(f, "%s\t\t\t\t%s\t\t\t\t%d\t\t\t\t%d\n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo),tabla_simbolos[i].esConstante,tabla_simbolos[i].lineNumber);
-			fprintf(a, "\n");
-			if(tabla_simbolos[i].nombre[1] == 'c' && tabla_simbolos[i].nombre[2] == 't' && tabla_simbolos[i].nombre[3] == 'e')
-			{
-				char *aux = newStr(tabla_simbolos[i].nombre);
-				fprintf(a, "_");
-				fprintf(a, aux);		
-				fprintf(a, " dd ");
-				char subbuff[5];
-				memcpy( subbuff, &aux[4], 6 );
-				subbuff[6] = '\0';
-				fprintf(a, subbuff);
-			} else
-			{
-				fprintf(a, "\n");
-				fprintf(a, tabla_simbolos[i].nombre);			
-				fprintf(a, " dd ?");
-			} 
-		}
-		
-		// if(tabla_simbolos[i].tipo == TIPO_PR)
-		// 	fprintf(f, "%s\t\t\t\t%s\t\t\t\t\n",tabla_simbolos[i].nombre,tipo_simbolo_to_string(tabla_simbolos[i].tipo));
-				
-
-	}
-	fclose(f);
-}
-
-/** Esta funcion te permite agregar un simbolo a la tabla de simbolos.
-	La idea es que se le envie el nombre del simbolo (Si es un id, el nombre
-	de la variable con el  prefijo "_", el tipo de dato es un int definido
-	 en las macro y el valor, en caso de que sea una constante)*/
-void agregar_simbolo(char * nombre, int tipo, char * valor,char * alias, int lineNumber,int esConstante) {
-int n;
-	tabla_simbolos[cantidad_simbolos].nombre = malloc(sizeof(char) * strlen(nombre));
-	strcpy(tabla_simbolos[cantidad_simbolos].nombre,nombre);
-
-
-	if(alias != NULL) {
-		tabla_simbolos[cantidad_simbolos].alias = malloc(sizeof(char) * strlen(alias));
-		strcpy(tabla_simbolos[cantidad_simbolos].alias,alias);	
-	}
-	tabla_simbolos[cantidad_simbolos].tipo = tipo;
-	tabla_simbolos[cantidad_simbolos].esConstante = esConstante;
-	tabla_simbolos[cantidad_simbolos].lineNumber = lineNumber;
-	switch(tipo) {
-		case TIPO_FLOAT:
-			valor="0";
-			tabla_simbolos[cantidad_simbolos].valor_float = atof(valor);
-		break;
-		case TIPO_STRING:
-			if(valor != NULL) {
-				tabla_simbolos[cantidad_simbolos].valor_string = malloc(sizeof(char) * strlen(valor));
-				strcpy(tabla_simbolos[cantidad_simbolos].valor_string,valor);	
-			} else {
-				tabla_simbolos[cantidad_simbolos].valor_string = NULL;
-			}
-		break;
-		case TIPO_INT:
-			valor="0";
-			tabla_simbolos[cantidad_simbolos].valor_int = atoi(valor);
-		break;
-		case TIPO_PR:
-		break;
-		default:
-		puts("Tipo dato erroneo"); exit(1);
-	}
-	cantidad_simbolos++;
-
-
-}
-
-char * substring(char * str , int start, int end)
-{
-	char * ret = (char*) malloc(sizeof(char) * (end - start + 1));
-	memcpy( ret, str + start, end - start +1);
-	*(ret + (end - start+1)) = '\0';
-	return ret;
-}
-
-char * get_nombre_sin_prefijo(t_simbolo * p_simbolo)
-{
-	// printf("Prefijo int : %d\n",);
-	if(!p_simbolo->esConstante)
-		return p_simbolo->nombre + strlen(PREFIJO_ID);
-
-	if(p_simbolo->tipo == TIPO_INT)
-		return p_simbolo->nombre + strlen(PREFIJO_INT);
-
-	if(p_simbolo->tipo == TIPO_STRING)
-		return p_simbolo->nombre + strlen(PREFIJO_STRING);
-	
-	if(p_simbolo->tipo == TIPO_FLOAT)
-		return p_simbolo->nombre + strlen(PREFIJO_FLOAT);
-}
-
-/* Busca una variable en la TS sin tener en cuenta sus prefijos y devuelve
-el indice. si no lo encuentra, devuelve -1;*/
-int buscar_en_TS_sin_prefijo(char * nombre, char * mjs_error, int lineNumber) {
-	char * temp;
-	int i;
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		temp = get_nombre_sin_prefijo(&tabla_simbolos[i]	);
-		// strcpy(temp,tabla_simbolos[i].nombre + 1);
-		if(strcmp(temp,nombre) == 0) 
-			return i;
-	}
-	if(mjs_error != NULL) 
-		sprintf(mjs_error,VARIABLE_INEXISTENTE,nombre, lineNumber);
-	return -1;
-}
-
-/* devuelve el indice del simbolo en la tabla. si no lo encuentra
-devuelve -1
-*/
-int buscar_en_TS(char * nombre, char * mjs_error, int lineNumber) {
-	int i;
-	for (i = 0; i < cantidad_simbolos; ++i)
-	{
-		if(strcmp(tabla_simbolos[i].nombre,nombre) == 0) 
-			return i;
-	}
-	if(mjs_error != NULL) 
-		sprintf(mjs_error,VARIABLE_INEXISTENTE,nombre, lineNumber);
-	return -1;
-}
-
-
-/* Agrega una variable a la TS*/
-void agregar_variable_a_TS(char * nombre, char * tipo_str, int lineNumber) {
-	// printf("agrego %s en linea %d\n",nombre,linecount );
-	strcpy(aux2,nombre);
-	poner_prefijo(aux2,prefijo_id);
-	int index;
-	//si ya existe en TS, tiro error y cierro programa
-	if((index = buscar_en_TS(aux2, NULL,0)) >= 0) {
-		printf(VARIABLE_REPETIDA,nombre,tabla_simbolos[index].lineNumber);
-		exit(1);
-	}
-
-	int tipo = strcmp(tipo_str, "FLOAT") == 0 ? TIPO_FLOAT : strcmp(tipo_str, "INT") == 0 ? TIPO_INT : TIPO_STRING;
-	agregar_simbolo(aux2,tipo,NULL,NULL,lineNumber,0);
-}
-
-/*Agrega una constante a la TS*/
-void agregar_cte_a_TS(int tipo, char * valor_str, int valor_int,float valor_float, int lineNumber) {
-
-
-	if(tipo == TIPO_STRING) {
-		strcpy(aux2,prefijo_string);
-		strcat(aux2, valor_str);
-		if(buscar_en_TS_sin_prefijo(valor_str,NULL,0) != -1)
-		return;
-
-		cantidad_cte_string++;
-		agregar_simbolo(aux2,tipo,NULL,NULL,lineNumber,1);
-
-
-	}else if(tipo == TIPO_INT) {
-		strcpy(aux2,prefijo_int);
-		sprintf(aux,"%d",valor_int);
-		strcat(aux2,aux);
-		if(buscar_en_TS_sin_prefijo(aux,NULL,0) != -1)
-		return;
-
-		agregar_simbolo(aux2,tipo,aux,NULL,lineNumber,1);
-		
-	}else if(tipo == TIPO_FLOAT) {
-		strcpy(aux2,prefijo_float);
-		snprintf(aux,30,"%.4f",valor_float);
-		strcat(aux2,aux);
-		if(buscar_en_TS_sin_prefijo(aux,NULL,0) != -1)
-		return;
-		agregar_simbolo(aux2,tipo,aux,NULL,lineNumber,1);
-		
-	}
-}
-
-/*Busca un simbolo en la TS por su nombre, y te devuelve su tipo */
-int traer_tipo(char * nombre) {
-	int index = buscar_en_TS_sin_prefijo(nombre, NULL,0);
-	return tabla_simbolos[index].tipo;
-}
-
-/* 
-Busca en la tabla de simbolos por nombre. Si los encuentra, devuelve 1 si son iguales,
-o 0 si son distintos. Se le puede enviar un buffer de forma opcional para devolver
-un mensaje de error
-*/
-int tipos_iguales(char * nombre1, char * nombre2, char * msj_error,int lineNumber) {
-
-	int index1 = buscar_en_TS_sin_prefijo(nombre1,msj_error,lineNumber);
-	int index2 = buscar_en_TS_sin_prefijo(nombre2,msj_error,lineNumber);
-
-// printf("%s %s %d %d\n",nombre1,nombre2,index1,index2 );
-	if(index1 == -1 || index2 == -1) {
-		return 0;
-	}
-
-	int return_value = tabla_simbolos[index1].tipo == tabla_simbolos[index2].tipo;
-
-
-	/* Si me pedian un mensaje de error, lo guardo en la variable*/
-	if(!return_value && msj_error != NULL) {
-		char tipo1[10];
-		tabla_simbolos[index1].tipo == TIPO_STRING ? strcpy(tipo1,"STRING") : tabla_simbolos[index1].tipo == TIPO_FLOAT ? strcpy(tipo1,"FLOAT") : strcpy(tipo1,"INT");		
-		char tipo2[10]; 
-		tabla_simbolos[index2].tipo == TIPO_STRING ? strcpy(tipo2,"STRING") : tabla_simbolos[index2].tipo == TIPO_FLOAT ? strcpy(tipo2,"FLOAT") : strcpy(tipo2,"INT");		
-
-		sprintf(msj_error,VARIABLE_ERROR_TIPOS,tipo1,tipo2, lineNumber);
-	}
-	// return 1;
-	return tabla_simbolos[index1].tipo == tabla_simbolos[index2].tipo; 
-}
-
-/* Esta funcion le pone un prefijo a una string base*/
-void poner_prefijo(char * str, char * prefijo) {
-	char pref[32];
-
-	strcpy(pref, prefijo);
-	strcat(pref,str);
-	strcpy(str,pref);
-}
-
-
-void reemplazar(char * cad, char old,char new, int size) 
-{
-	int i;
-	for(i = 0; i < size; i++)
-	{
-		if(*(cad + i) == old)
-			*(cad + i) = new;
-	}
-}
-
-
-void copiar_sin_finalizador(char * dest,char * orig) 
-{
-	
-	while(*orig && *dest)
-	{
-		*dest = *orig;
-		orig++;
-		dest++;		
-	}
-}
-char *newStr (char *charBuffer) {
-  int length = strlen(charBuffer);
-  char *str;
-  if (length <= 1) {
-    str = (char *) malloc(1);
-    str[0] = '\0';
-  } else {
-    str = (char *) malloc(length);
-    strcpy(str, &charBuffer[1]);
-  }
-  return str;
-}
-
-int traer_tipo_con_prefijo(char * nombre) {
-	int index = buscar_en_TS(nombre, NULL,0);
-	return tabla_simbolos[index].tipo;
 }

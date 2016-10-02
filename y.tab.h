@@ -44,44 +44,46 @@
      CONST_STR = 260,
      CONST_FLOAT = 261,
      PR_MAIN = 262,
-     PR_IGUALES = 263,
-     PR_FILTER = 264,
-     PR_WRITE = 265,
-     PR_READ = 266,
-     PR_IF = 267,
-     PR_THEN = 268,
-     PR_ENDIF = 269,
-     PR_ELSE = 270,
-     PR_NOT = 271,
-     PR_WHILE = 272,
-     PR_DO = 273,
-     PR_ENDWHILE = 274,
-     PAR_ABRE = 275,
-     PAR_CIERRA = 276,
-     COR_ABRE = 277,
-     COR_CIERRA = 278,
-     COMA = 279,
-     OP_LOG_AND = 280,
-     OP_LOG_OR = 281,
-     OP_SUMA = 282,
-     OP_RESTA = 283,
-     OP_MUL = 284,
-     OP_DIV = 285,
-     OP_MAYOR = 286,
-     OP_MAYOR_IGUAL = 287,
-     OP_MENOR = 288,
-     OP_MENOR_IGUAL = 289,
-     OP_DISTINTO = 290,
-     OP_IGUAL_IGUAL = 291,
-     OP_IGUAL = 292,
-     PR_AS = 293,
-     PR_DIM = 294,
-     OP_FILTER = 295,
-     PR_FLOAT = 296,
-     PR_INT = 297,
-     PR_STRING = 298,
-     OP_CONCAT = 299,
-     PUNTO_Y_COMA = 300
+     PR_WRITE = 263,
+     PR_READ = 264,
+     PR_IF = 265,
+     PR_THEN = 266,
+     PR_ENDIF = 267,
+     PR_ELSE = 268,
+     PR_NOT = 269,
+     PR_WHILE = 270,
+     PR_DO = 271,
+     PR_ENDWHILE = 272,
+     PR_AVERAGE = 273,
+     PR_DECVAR = 274,
+     PR_ENDDEC = 275,
+     PR_BETWEEN = 276,
+     PAR_ABRE = 277,
+     PAR_CIERRA = 278,
+     COR_ABRE = 279,
+     COR_CIERRA = 280,
+     COMA = 281,
+     OP_LOG_AND = 282,
+     OP_LOG_OR = 283,
+     OP_SUMA = 284,
+     OP_RESTA = 285,
+     OP_MUL = 286,
+     OP_DIV = 287,
+     OP_MAYOR = 288,
+     OP_MAYOR_IGUAL = 289,
+     OP_MENOR = 290,
+     OP_MENOR_IGUAL = 291,
+     OP_DISTINTO = 292,
+     OP_IGUAL_IGUAL = 293,
+     OP_IGUAL = 294,
+     PR_AS = 295,
+     PR_DIM = 296,
+     PR_FLOAT = 297,
+     PR_INT = 298,
+     PR_STRING = 299,
+     OP_CONCAT = 300,
+     PUNTO_Y_COMA = 301,
+     DOS_PUNTOS = 302
    };
 #endif
 /* Tokens.  */
@@ -90,44 +92,46 @@
 #define CONST_STR 260
 #define CONST_FLOAT 261
 #define PR_MAIN 262
-#define PR_IGUALES 263
-#define PR_FILTER 264
-#define PR_WRITE 265
-#define PR_READ 266
-#define PR_IF 267
-#define PR_THEN 268
-#define PR_ENDIF 269
-#define PR_ELSE 270
-#define PR_NOT 271
-#define PR_WHILE 272
-#define PR_DO 273
-#define PR_ENDWHILE 274
-#define PAR_ABRE 275
-#define PAR_CIERRA 276
-#define COR_ABRE 277
-#define COR_CIERRA 278
-#define COMA 279
-#define OP_LOG_AND 280
-#define OP_LOG_OR 281
-#define OP_SUMA 282
-#define OP_RESTA 283
-#define OP_MUL 284
-#define OP_DIV 285
-#define OP_MAYOR 286
-#define OP_MAYOR_IGUAL 287
-#define OP_MENOR 288
-#define OP_MENOR_IGUAL 289
-#define OP_DISTINTO 290
-#define OP_IGUAL_IGUAL 291
-#define OP_IGUAL 292
-#define PR_AS 293
-#define PR_DIM 294
-#define OP_FILTER 295
-#define PR_FLOAT 296
-#define PR_INT 297
-#define PR_STRING 298
-#define OP_CONCAT 299
-#define PUNTO_Y_COMA 300
+#define PR_WRITE 263
+#define PR_READ 264
+#define PR_IF 265
+#define PR_THEN 266
+#define PR_ENDIF 267
+#define PR_ELSE 268
+#define PR_NOT 269
+#define PR_WHILE 270
+#define PR_DO 271
+#define PR_ENDWHILE 272
+#define PR_AVERAGE 273
+#define PR_DECVAR 274
+#define PR_ENDDEC 275
+#define PR_BETWEEN 276
+#define PAR_ABRE 277
+#define PAR_CIERRA 278
+#define COR_ABRE 279
+#define COR_CIERRA 280
+#define COMA 281
+#define OP_LOG_AND 282
+#define OP_LOG_OR 283
+#define OP_SUMA 284
+#define OP_RESTA 285
+#define OP_MUL 286
+#define OP_DIV 287
+#define OP_MAYOR 288
+#define OP_MAYOR_IGUAL 289
+#define OP_MENOR 290
+#define OP_MENOR_IGUAL 291
+#define OP_DISTINTO 292
+#define OP_IGUAL_IGUAL 293
+#define OP_IGUAL 294
+#define PR_AS 295
+#define PR_DIM 296
+#define PR_FLOAT 297
+#define PR_INT 298
+#define PR_STRING 299
+#define OP_CONCAT 300
+#define PUNTO_Y_COMA 301
+#define DOS_PUNTOS 302
 
 
 
@@ -137,7 +141,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 58 "syntax.y"
+#line 66 "syntax.y"
 
 int intval;
 float val;
@@ -146,7 +150,7 @@ char *str_val;
 
 
 /* Line 1676 of yacc.c  */
-#line 150 "y.tab.h"
+#line 154 "y.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
